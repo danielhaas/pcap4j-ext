@@ -1,0 +1,25 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B verify
+
+      - name: Check the parsers against Wireshark
+        run: |
+          sudo apt-get update && sudo apt-get install -y tshark
+          echo "the cross-check needs generated captures, which are not in the repository yet"

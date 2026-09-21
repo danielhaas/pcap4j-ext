@@ -30,14 +30,17 @@ awkward ones, such as NAT-PMP and PCP sharing a port and PAgP carrying two forma
 protocol id:
 
 ```java
-for (Protocol found : Protocols.decode(packet).found()) {
-    switch (found) {
-        case Cdp cdp -> System.out.println(cdp.deviceId() + " " + cdp.portId());
-        case Dhcp dhcp -> System.out.println(dhcp.hostName());
+for (Protocols.Finding found : Protocols.decode(packet).found()) {
+    switch (found.protocol()) {
+        case Cdp cdp -> System.out.println(found.source() + " is on " + cdp.portId() + " of " + cdp.deviceId());
+        case Dhcp dhcp -> System.out.println(found.source() + " asked for " + dhcp.requestedAddress());
         default -> { }
     }
 }
 ```
+
+A finding carries the MAC that sent it and the VLAN tags it arrived under, so it can be filed
+against a device without walking the layers again.
 
 `Protocol` is sealed, so a switch over it can be checked by the compiler. `Decoded` also carries
 `rejected()`, the messages from parsers whose layer identified them but whose bytes did not fit;
@@ -165,7 +168,10 @@ Records are immutable: a collection handed to one is copied, and what comes back
 values one by one. Wireshark is an independent reading of the same bytes, which matters here: a test
 written by whoever wrote the parser will happily agree with the parser's own misreading.
 
-It found a real bug the unit tests could not: a client hello cut short still parsed, reported no
+There is also a robustness suite: every parser is fed every truncation of a valid message, random
+bytes, and valid messages with rubbish appended, and nothing may escape but a rejection.
+
+The cross-check found a real bug the unit tests could not: a client hello cut short still parsed, reported no
 server name, and the QUIC reassembler concluded it was finished and threw the rest away. One name in
 a real capture went missing that way.
 

@@ -1,6 +1,6 @@
 package li.haas.pcap4j.ext;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -15,7 +15,25 @@ public final class QuicAssembler {
     /** A hello larger than this is not worth holding on to. */
     private static final int MAX_BYTES = 64 * 1024;
 
-    private final Map<String, TreeMap<Long, byte[]>> pending = new HashMap<>();
+    /**
+     * How many incomplete handshakes to keep. A capture is full of connections whose first
+     * packets were never recorded, and without a cap their fragments would accumulate for the
+     * length of the run. The least recently touched one goes first.
+     */
+    private static final int MAX_CONNECTIONS = 512;
+
+    private final Map<String, TreeMap<Long, byte[]>> pending =
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, TreeMap<Long, byte[]>> eldest) {
+                    return size() > MAX_CONNECTIONS;
+                }
+            };
+
+    /** How many incomplete handshakes are being held. */
+    public int pendingConnections() {
+        return pending.size();
+    }
 
     /**
      * Adds a packet's fragments and returns the client hello once it can be read, else null.

@@ -15,6 +15,7 @@ import org.pcap4j.packet.TcpPacket;
 import org.pcap4j.packet.UnknownPacket;
 import org.pcap4j.packet.UdpPacket;
 import org.pcap4j.packet.namednumber.EtherType;
+import org.pcap4j.util.MacAddress;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,8 +26,8 @@ import java.util.List;
  * that SNAP protocol id 0x2000 means CDP or that UDP 5351 carries NAT-PMP and PCP together.
  *
  * <pre>
- * for (Protocol found : Protocols.decode(packet).found()) {
- *     switch (found) {
+ * for (Protocols.Finding found : Protocols.decode(packet).found()) {
+ *     switch (found.protocol()) {
  *         case Cdp cdp -&gt; System.out.println(cdp.deviceId() + " " + cdp.portId());
  *         case Dhcp dhcp -&gt; System.out.println(dhcp.hostName());
  *         default -&gt; { }
@@ -43,12 +44,33 @@ public final class Protocols {
     }
 
     /**
+     * One protocol and the frame it came in on. Without the sender a finding cannot be filed
+     * against a device, and the caller would have to walk the layers again to recover it.
+     *
+     * @param protocol    what was read
+     * @param source      the MAC that sent the frame
+     * @param destination the MAC it was sent to
+     * @param vlans       the VLAN tags it arrived under, outermost first, empty when untagged
+     */
+    public record Finding(Protocol protocol, MacAddress source, MacAddress destination, List<Integer> vlans) {
+
+        public Finding {
+            vlans = vlans == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(vlans));
+        }
+
+        @Override
+        public String toString() {
+            return (source == null ? "?" : source) + (vlans.isEmpty() ? "" : " " + vlans) + "  " + protocol;
+        }
+    }
+
+    /**
      * What one packet turned out to hold.
      *
-     * @param found    everything that parsed, outermost layer first
+     * @param found    everything that parsed, outermost layer first, with the frame it came in on
      * @param rejected messages from parsers whose layer identified them but whose bytes did not fit
      */
-    public record Decoded(List<Protocol> found, List<String> rejected) {
+    public record Decoded(List<Finding> found, List<String> rejected) {
 
         public Decoded {
             found = Collections.unmodifiableList(new ArrayList<>(found));
@@ -59,10 +81,15 @@ public final class Protocols {
             return found.isEmpty();
         }
 
+        /** Just the protocols, for a caller that does not care who sent them. */
+        public List<Protocol> protocols() {
+            return found.stream().map(Finding::protocol).toList();
+        }
+
         /** The first decoded protocol of the given kind, or null. */
         public <T extends Protocol> T first(Class<T> kind) {
-            for (Protocol p : found) {
-                if (kind.isInstance(p)) return kind.cast(p);
+            for (Finding f : found) {
+                if (kind.isInstance(f.protocol())) return kind.cast(f.protocol());
             }
             return null;
         }
@@ -111,15 +138,31 @@ public final class Protocols {
     public static Decoded decode(Packet packet) {
         final List<Protocol> found = new ArrayList<>();
         final List<String> rejected = new ArrayList<>();
+        MacAddress source = null;
+        MacAddress destination = null;
+        final List<Integer> vlans = new ArrayList<>();
 
         for (Packet layer : layers(packet)) {
+            // the outermost Ethernet header is the one that sent this frame; an ICMP error or a
+            // tunnelled copy carries another one further in, which is somebody else's
+            if (layer instanceof EthernetPacket eth && source == null) {
+                source = eth.getHeader().getSrcAddr();
+                destination = eth.getHeader().getDstAddr();
+            } else if (layer instanceof Dot1qVlanTagPacket tag) {
+                vlans.add(tag.getHeader().getVidAsInt());
+            }
             try {
                 decodeLayer(layer, found);
             } catch (IllegalRawDataException e) {
                 rejected.add(e.getMessage());
             }
         }
-        return new Decoded(found, rejected);
+
+        final List<Finding> findings = new ArrayList<>(found.size());
+        for (Protocol protocol : found) {
+            findings.add(new Finding(protocol, source, destination, vlans));
+        }
+        return new Decoded(findings, rejected);
     }
 
     private static void decodeLayer(Packet layer, List<Protocol> found) throws IllegalRawDataException {

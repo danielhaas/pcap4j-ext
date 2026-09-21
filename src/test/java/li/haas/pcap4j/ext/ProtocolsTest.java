@@ -91,6 +91,21 @@ class ProtocolsTest {
     }
 
     @Test
+    void saysWhoSentEachFinding() throws Exception {
+        final ByteArrayOutputStream cdp = new ByteArrayOutputStream();
+        cdp.write(2); cdp.write(180); cdp.write(0); cdp.write(0);
+        cdp.writeBytes(CiscoProtocolTest.tlv(1, "sw-core-01".getBytes(StandardCharsets.US_ASCII)));
+
+        final Protocols.Decoded decoded = Protocols.decode(snapFrame("aabbccdd0009", 0x2000, cdp.toByteArray()));
+        assertEquals(1, decoded.found().size());
+        final Protocols.Finding finding = decoded.found().get(0);
+        assertEquals("aa:bb:cc:dd:00:09", finding.source().toString());
+        assertEquals("01:00:0c:cc:cc:cc", finding.destination().toString());
+        assertTrue(finding.vlans().isEmpty());
+        assertTrue(finding.protocol() instanceof Cdp);
+    }
+
+    @Test
     void decodedListsAreNotTheCallersToChange() throws Exception {
         final Protocols.Decoded decoded = Protocols.decode(etherFrame(0x0800, new byte[40]));
         org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
