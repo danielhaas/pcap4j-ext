@@ -1,6 +1,7 @@
 package li.haas.pcap4j.ext;
 
 import org.junit.jupiter.api.Test;
+import org.pcap4j.packet.IllegalRawDataException;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -10,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Link aggregation and gateway redundancy: LACP, the marker protocol, HSRP and VRRP. */
@@ -30,7 +32,7 @@ class RedundancyTest {
     }
 
     @Test
-    void parsesLacpWithBothEndsBundled() {
+    void parsesLacpWithBothEndsBundled() throws Exception {
         final ByteArrayOutputStream p = new ByteArrayOutputStream();
         p.write(Lacp.SUBTYPE_LACP); p.write(1);
         p.write(1); p.write(20); p.writeBytes(lacpEndpoint("0011aabbcc00", 10, 1, STATE_BUNDLED));
@@ -49,7 +51,7 @@ class RedundancyTest {
     }
 
     @Test
-    void detectsLacpPartnerThatNeverAnswers() {
+    void detectsLacpPartnerThatNeverAnswers() throws Exception {
         final ByteArrayOutputStream p = new ByteArrayOutputStream();
         p.write(Lacp.SUBTYPE_LACP); p.write(1);
         p.write(1); p.write(20); p.writeBytes(lacpEndpoint("0011aabbcc00", 10, 3, 0x05));
@@ -64,7 +66,7 @@ class RedundancyTest {
     }
 
     @Test
-    void parsesMarkerRequestAndResponse() {
+    void parsesMarkerRequestAndResponse() throws Exception {
         // real marker PDUs are padded out to the minimum frame size
         final byte[] request = hex("02 01 01 10 0001 0011aabbcc00 00001b59 0000" + "00".repeat(90));
         final Marker marker = Marker.parse(request);
@@ -82,13 +84,13 @@ class RedundancyTest {
     }
 
     @Test
-    void doesNotReadLacpAsMarker() {
+    void doesNotReadLacpAsMarker() throws Exception {
         final byte[] lacpdu = hex("01 01 01 14" + "00".repeat(40));
-        assertNull(Marker.parse(lacpdu));
+        assertThrows(IllegalRawDataException.class, () -> Marker.parse(lacpdu));
     }
 
     @Test
-    void parsesHsrpVersionOneWithDefaultPassword() {
+    void parsesHsrpVersionOneWithDefaultPassword() throws Exception {
         // version 0, hello, active (16), hello 3s, hold 10s, priority 110, group 1
         final byte[] p = hex("00 00 10 03 0a 6e 01 00 " + hexText("cisco", 8) + " c0a81101");
         final Hsrp hsrp = Hsrp.parse(p);
@@ -103,7 +105,7 @@ class RedundancyTest {
     }
 
     @Test
-    void parsesHsrpVersionTwoWithTextAuthentication() {
+    void parsesHsrpVersionTwoWithTextAuthentication() throws Exception {
         final ByteArrayOutputStream p = new ByteArrayOutputStream();
         // group state TLV: type 1, length 40
         p.write(1); p.write(40);
@@ -130,7 +132,7 @@ class RedundancyTest {
     }
 
     @Test
-    void parsesVrrpVersionTwoWithPassword() {
+    void parsesVrrpVersionTwoWithPassword() throws Exception {
         // version 2 type 1, vrid 10, priority 150, one address, simple text auth, interval 1s
         final byte[] p = hex("21 0a 96 01 01 01 0000 0a010001 " + hexText("vrrppass", 8));
         final Vrrp vrrp = Vrrp.parse(p, false);
@@ -146,7 +148,7 @@ class RedundancyTest {
     }
 
     @Test
-    void recognisesVrrpOwnerAndResignation() {
+    void recognisesVrrpOwnerAndResignation() throws Exception {
         final Vrrp owner = Vrrp.parse(hex("31 05 ff 01 0064 0000 0a020001"), false);
         assertNotNull(owner);
         assertEquals(3, owner.version());
@@ -159,7 +161,7 @@ class RedundancyTest {
     }
 
     @Test
-    void parsesVrrpOverIpv6() {
+    void parsesVrrpOverIpv6() throws Exception {
         final byte[] p = hex("31 07 78 01 0064 0000 20010db8000000000000000000000001");
         final Vrrp vrrp = Vrrp.parse(p, true);
         assertNotNull(vrrp);

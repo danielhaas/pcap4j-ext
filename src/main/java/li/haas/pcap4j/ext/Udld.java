@@ -11,6 +11,8 @@ import java.util.List;
  * Seeing your own id in a neighbour's echo is the proof that the link works in both
  * directions; a fibre pair with one broken strand is exactly what this catches.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Udld(int version, int opcode, int flags,
                    String deviceId, String portId, String deviceName,
                    Integer messageInterval, Integer timeoutInterval, Long sequence,
@@ -65,8 +67,18 @@ public record Udld(int version, int opcode, int flags,
                 + (messageInterval == null ? "" : " every " + messageInterval + "s");
     }
 
+    /**
+     * Parses bytes the caller has already identified as UDLD, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Udld parse(byte[] p) throws IllegalRawDataException {
+        final Udld parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("UDLD", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not UDLD. */
-    public static Udld parse(byte[] p) {
+    private static Udld parseOrNull(byte[] p) {
         if (p.length < 8) return null;
         final int version = (p[0] & 0xe0) >> 5;
         final int opcode = p[0] & 0x1f;

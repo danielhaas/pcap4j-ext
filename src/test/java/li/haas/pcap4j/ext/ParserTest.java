@@ -1,6 +1,7 @@
 package li.haas.pcap4j.ext;
 
 import org.junit.jupiter.api.Test;
+import org.pcap4j.packet.IllegalRawDataException;
 
 import java.nio.charset.StandardCharsets;
 
@@ -8,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -26,7 +28,7 @@ class ParserTest {
     }
 
     @Test
-    void parsesConfigurationBpdu() {
+    void parsesConfigurationBpdu() throws Exception {
         final Bpdu bpdu = Bpdu.parse(hex(
                 "0000 00 00 00 8000 001122334455 00000004 8000 001122334455 8001 0100 1400 0200 0f00"));
         assertNotNull(bpdu);
@@ -39,7 +41,7 @@ class ParserTest {
     }
 
     @Test
-    void readsTopologyChangeFlagFromRstpBpdu() {
+    void readsTopologyChangeFlagFromRstpBpdu() throws Exception {
         final Bpdu bpdu = Bpdu.parse(hex(
                 "0000 02 02 7d 1000aaaaaaaaaaaa 00004e20 8000bbbbbbbbbbbb 8002 0100 1400 0200 0f00 00"));
         assertNotNull(bpdu);
@@ -49,7 +51,7 @@ class ParserTest {
     }
 
     @Test
-    void parsesDtpWithDomainAndStatus() {
+    void parsesDtpWithDomainAndStatus() throws Exception {
         // version 1, domain "HONGKONGDC", status 0x04 (access/auto), type 0x40, neighbour MAC
         final Dtp dtp = Dtp.parse(hex(
                 "01 0001 000f 484f4e474b4f4e474443 00 0002 0005 04 0003 0005 40 0004 000a 7c69f673868a"));
@@ -78,7 +80,7 @@ class ParserTest {
     }
 
     @Test
-    void decodesNetbiosEncodedName() {
+    void decodesNetbiosEncodedName() throws Exception {
         final byte[] encoded = encodeNetbiosName("GAMORA", 0x00);
         final Netbios.Name name = Netbios.decode(encoded, 0);
         assertNotNull(name);
@@ -88,7 +90,7 @@ class ParserTest {
     }
 
     @Test
-    void parsesDhcpDiscoverWithHostNameAndMask() {
+    void parsesDhcpDiscoverWithHostNameAndMask() throws Exception {
         final byte[] p = new byte[300];
         p[0] = 1;                       // request
         p[1] = 1;                       // Ethernet
@@ -113,20 +115,35 @@ class ParserTest {
         assertNotNull(dhcp.clientMac());
     }
 
+    /**
+     * A parser the caller dispatched to by protocol id or port throws, because the bytes claimed
+     * to be that protocol. One that has to recognise itself returns null instead.
+     */
     @Test
     void rejectsDataThatIsNotTheProtocol() {
         final byte[] noise = hex("deadbeefcafebabe0011223344556677");
-        assertNull(Bpdu.parse(noise));
-        assertNull(Dtp.parse(new byte[] {0x02}));
-        assertNull(Cdp.parse(noise));
-        assertNull(Vtp.parse(noise));
-        assertNull(Ntp.parse(noise));
+        assertThrows(IllegalRawDataException.class, () -> Bpdu.parse(noise));
+        assertThrows(IllegalRawDataException.class, () -> Dtp.parse(new byte[] {0x02}));
+        assertThrows(IllegalRawDataException.class, () -> Cdp.parse(noise));
+        assertThrows(IllegalRawDataException.class, () -> Vtp.parse(noise));
+        assertThrows(IllegalRawDataException.class, () -> Ntp.parse(noise));
+
         assertNull(Http.parse(noise));
         assertNull(Tls.parse(noise));
+        assertNull(Ssdp.parse(noise));
+        assertNull(Stun.parse(noise));
     }
 
     @Test
-    void parsesNtpServerReplyWithUpstream() {
+    void namesTheProtocolAndTheBytesWhenItThrows() {
+        final IllegalRawDataException thrown = assertThrows(IllegalRawDataException.class,
+                () -> Cdp.parse(hex("deadbeefcafebabe")));
+        assertTrue(thrown.getMessage().contains("not CDP"), thrown.getMessage());
+        assertTrue(thrown.getMessage().contains("de ad be ef"), thrown.getMessage());
+    }
+
+    @Test
+    void parsesNtpServerReplyWithUpstream() throws Exception {
         final byte[] p = new byte[48];
         p[0] = 0x24;                    // version 4, mode 4 (server)
         p[1] = 2;                       // stratum 2
@@ -143,7 +160,7 @@ class ParserTest {
     }
 
     @Test
-    void namesReferenceClockForStratumOne() {
+    void namesReferenceClockForStratumOne() throws Exception {
         final byte[] p = new byte[48];
         p[0] = 0x24;
         p[1] = 1;
@@ -155,7 +172,7 @@ class ParserTest {
     }
 
     @Test
-    void readsIgmpV3ReportWithSourceList() {
+    void readsIgmpV3ReportWithSourceList() throws Exception {
         final Igmp igmp = Igmp.parse(hex(
                 "22 00 0000 0000 0001"      // v3 report, one group record
                         + "01 00 0001 e8010101 c6336405"));   // include 232.1.1.1 from 198.51.100.5
@@ -168,14 +185,14 @@ class ParserTest {
     }
 
     @Test
-    void treatsEmptyIncludeChangeAsLeave() {
+    void treatsEmptyIncludeChangeAsLeave() throws Exception {
         final Igmp igmp = Igmp.parse(hex("22 00 0000 0000 0001 03 00 0000 efc00014"));
         assertNotNull(igmp);
         assertTrue(igmp.records().get(0).isLeave());
     }
 
     @Test
-    void findsMldBehindHopByHopHeaderWithPadN() {
+    void findsMldBehindHopByHopHeaderWithPadN() throws Exception {
         // router alert followed by PadN, the padding pcap4j itself gets wrong
         final byte[] hopByHop = hex("3a 00 05 02 0000 0100");
         final byte[] icmp = hex("83 00 0000 0000 0000 ff020000000000000000000000000fb".replace("0fb", "00fb"));
@@ -191,7 +208,7 @@ class ParserTest {
     }
 
     @Test
-    void readsServerNameFromTlsClientHello() {
+    void readsServerNameFromTlsClientHello() throws Exception {
         final String host = "example.test";
         final byte[] name = host.getBytes(StandardCharsets.US_ASCII);
 

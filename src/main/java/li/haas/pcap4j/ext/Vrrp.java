@@ -13,6 +13,8 @@ import java.util.List;
  * Only the master advertises, so a second router advertising the same VRID means the
  * group has split. The virtual MAC is 00:00:5e:00:01:{vrid} for IPv4.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Vrrp(int version, int type, int virtualRouterId, int priority,
                    int advertIntervalCentiseconds, List<InetAddress> virtualAddresses,
                    int authType, String authentication) {
@@ -55,8 +57,18 @@ public record Vrrp(int version, int type, int virtualRouterId, int priority,
                 + (authentication == null || authentication.isEmpty() ? "" : " auth=" + authentication);
     }
 
+    /**
+     * Parses bytes the caller has already identified as VRRP by IP protocol 112.
+     * Throws rather than returning null: at this point the bytes claim to be an advertisement.
+     */
+    public static Vrrp parse(byte[] p, boolean ipv6) throws IllegalRawDataException {
+        final Vrrp parsed = parseOrNull(p, ipv6);
+        if (parsed == null) throw Raw.notA("a VRRP advertisement", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not a VRRP advertisement. */
-    public static Vrrp parse(byte[] p, boolean ipv6) {
+    private static Vrrp parseOrNull(byte[] p, boolean ipv6) {
         if (p.length < 8) return null;
         final int version = (p[0] & 0xf0) >> 4;
         final int type = p[0] & 0x0f;

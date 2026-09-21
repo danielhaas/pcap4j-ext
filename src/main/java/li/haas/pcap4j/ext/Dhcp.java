@@ -15,6 +15,8 @@ import java.util.List;
  * address, the subnet mask, the gateway and DNS. The mask is the only place on the wire
  * that states the real prefix length.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
                    Inet4Address clientAddress,      // ciaddr, set when renewing
                    Inet4Address assignedAddress,    // yiaddr, what the server hands out
@@ -98,8 +100,18 @@ public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
                 + (vendorClass == null ? "" : " vendor=" + vendorClass);
     }
 
+    /**
+     * Parses bytes the caller has already identified as DHCP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Dhcp parse(byte[] p) throws IllegalRawDataException {
+        final Dhcp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("DHCP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not DHCP. */
-    public static Dhcp parse(byte[] p) {
+    private static Dhcp parseOrNull(byte[] p) {
         if (p.length < 240) return null;
         final int op = p[0] & 0xff;
         if (op != 1 && op != 2) return null;                       // request or reply

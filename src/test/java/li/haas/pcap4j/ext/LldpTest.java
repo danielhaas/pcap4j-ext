@@ -1,6 +1,7 @@
 package li.haas.pcap4j.ext;
 
 import org.junit.jupiter.api.Test;
+import org.pcap4j.packet.IllegalRawDataException;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -9,6 +10,7 @@ import static li.haas.pcap4j.ext.ParserTest.hex;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** LLDP, whose TLVs pack a 7 bit type and a 9 bit length into two bytes. */
@@ -43,7 +45,7 @@ class LldpTest {
     }
 
     @Test
-    void parsesFullLldpdu() {
+    void parsesFullLldpdu() throws Exception {
         final ByteArrayOutputStream p = new ByteArrayOutputStream();
         p.writeBytes(tlv(1, prefixed(4, hex("0011aabbccdd"))));           // chassis id, subtype MAC
         p.writeBytes(tlv(2, prefixed(5, ascii("GigabitEthernet1/0/5")))); // port id, interface name
@@ -73,7 +75,7 @@ class LldpTest {
     }
 
     @Test
-    void readsVlanNameAndMedInventory() {
+    void readsVlanNameAndMedInventory() throws Exception {
         final ByteArrayOutputStream vlanName = new ByteArrayOutputStream();
         vlanName.writeBytes(hex("0014"));            // vlan 20
         vlanName.write(5);                            // name length
@@ -103,10 +105,10 @@ class LldpTest {
     }
 
     @Test
-    void requiresTheMandatoryTlvs() {
+    void requiresTheMandatoryTlvs() throws Exception {
         // a chassis id on its own is not an LLDPDU: the TTL is mandatory too
         final byte[] withoutTtl = tlv(1, prefixed(4, hex("0011aabbccdd")));
-        assertNull(Lldp.parse(withoutTtl));
-        assertNull(Lldp.parse(hex("deadbeefcafebabe")));
+        assertThrows(IllegalRawDataException.class, () -> Lldp.parse(withoutTtl));
+        assertThrows(IllegalRawDataException.class, () -> Lldp.parse(hex("deadbeefcafebabe")));
     }
 }

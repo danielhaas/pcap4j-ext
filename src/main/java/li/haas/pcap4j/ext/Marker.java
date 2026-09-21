@@ -11,6 +11,8 @@ import java.util.Arrays;
  * marker down the old link; once the partner echoes it back, everything in flight has arrived
  * and the move cannot reorder frames. An unanswered marker means the move stalled.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Marker(int version, int type, int requesterPort, MacAddress requesterSystem,
                      long transactionId) {
 
@@ -42,8 +44,18 @@ public record Marker(int version, int type, int requesterPort, MacAddress reques
                 + " transaction " + transactionId;
     }
 
+    /**
+     * Parses bytes the caller has already identified as a marker PDU, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Marker parse(byte[] p) throws IllegalRawDataException {
+        final Marker parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("a marker PDU", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not a marker PDU. */
-    public static Marker parse(byte[] p) {
+    private static Marker parseOrNull(byte[] p) {
         if (p.length < 20 || (p[0] & 0xff) != SUBTYPE) return null;
         final int version = p[1] & 0xff;
         final int type = p[2] & 0xff;

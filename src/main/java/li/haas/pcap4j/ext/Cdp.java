@@ -13,6 +13,8 @@ import java.util.List;
  * Header: version (1), TTL (1), checksum (2), then TLVs of type (2), length (2, including these 4 bytes).
  * It names the switch and the exact port this capture point is plugged into.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Cdp(int version, int ttl,
                   String deviceId, String portId, String platform, String softwareVersion,
                   String vtpDomain, Integer nativeVlan, Integer duplex, Integer mtu,
@@ -72,8 +74,18 @@ public record Cdp(int version, int ttl,
                 + (softwareSummary() == null ? "" : " sw=" + softwareSummary());
     }
 
+    /**
+     * Parses bytes the caller has already identified as CDP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Cdp parse(byte[] p) throws IllegalRawDataException {
+        final Cdp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("CDP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not CDP. */
-    public static Cdp parse(byte[] p) {
+    private static Cdp parseOrNull(byte[] p) {
         if (p.length < 8) return null;
         final int version = p[0] & 0xff;
         if (version < 1 || version > 2) return null;

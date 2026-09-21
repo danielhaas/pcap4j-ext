@@ -16,6 +16,8 @@ import java.util.List;
  * then options of code (2) and length (2). Clients and servers identify themselves by DUID
  * rather than by MAC, though most DUIDs contain a MAC.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Dhcp6(int messageType, int transactionId,
                     String clientDuid, MacAddress clientMac,   // MAC out of the DUID, when it has one
                     String serverDuid,
@@ -76,8 +78,18 @@ public record Dhcp6(int messageType, int transactionId,
                 + (vendorClass == null ? "" : " vendor=" + vendorClass);
     }
 
+    /**
+     * Parses bytes the caller has already identified as DHCPv6, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Dhcp6 parse(byte[] p) throws IllegalRawDataException {
+        final Dhcp6 parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("DHCPv6", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not DHCPv6. */
-    public static Dhcp6 parse(byte[] p) {
+    private static Dhcp6 parseOrNull(byte[] p) {
         if (p.length < 4) return null;
         final int messageType = p[0] & 0xff;
         if (messageType < 1 || messageType > 13) return null;

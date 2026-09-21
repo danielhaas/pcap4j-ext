@@ -13,6 +13,8 @@ import java.util.Arrays;
  * on UDP 1985 (IPv4, to 224.0.0.102) or UDP 2029 (IPv6). The routers in a group share a
  * virtual address, and the one with the highest priority answers for it.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Hsrp(int version, int opcode, int state, int group, long priority,
                    int helloSeconds, int holdSeconds, InetAddress virtualAddress,
                    String authentication, MacAddress identifier) {
@@ -74,8 +76,18 @@ public record Hsrp(int version, int opcode, int state, int group, long priority,
                 + (authentication == null || authentication.isEmpty() ? "" : " auth=" + authentication);
     }
 
+    /**
+     * Parses bytes the caller has already identified as HSRP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Hsrp parse(byte[] p) throws IllegalRawDataException {
+        final Hsrp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("HSRP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not HSRP. */
-    public static Hsrp parse(byte[] p) {
+    private static Hsrp parseOrNull(byte[] p) {
         if (p.length < 20) return null;
         // version 1 starts with a zero version byte; version 2 starts with a TLV of type 1
         return (p[0] & 0xff) == 0 ? parseV1(p) : parseV2(p);

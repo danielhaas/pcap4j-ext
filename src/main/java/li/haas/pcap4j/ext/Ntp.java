@@ -10,6 +10,8 @@ import java.util.Arrays;
  * A reply says how far the server is from a reference clock (the stratum) and, for a
  * secondary server, which upstream it follows, so a capture reveals the time hierarchy.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Ntp(int leapIndicator, int version, int mode, int stratum,
                   int pollInterval, int precision, String referenceId) {
 
@@ -59,8 +61,18 @@ public record Ntp(int leapIndicator, int version, int mode, int stratum,
                 + (pollSeconds() == 0 ? "" : " poll=" + pollSeconds() + "s");
     }
 
+    /**
+     * Parses bytes the caller has already identified as NTP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Ntp parse(byte[] p) throws IllegalRawDataException {
+        final Ntp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("NTP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not NTP. */
-    public static Ntp parse(byte[] p) {
+    private static Ntp parseOrNull(byte[] p) {
         if (p.length < 48) return null;
         final int leap = (p[0] & 0xc0) >> 6;
         final int version = (p[0] & 0x38) >> 3;

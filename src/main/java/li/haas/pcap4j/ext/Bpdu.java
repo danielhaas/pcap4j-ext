@@ -8,6 +8,8 @@ import java.util.Arrays;
  * Spanning Tree BPDU (IEEE 802.1D / 802.1w / 802.1s common part), which pcap4j does not decode.
  * It arrives after an LLC header with DSAP/SSAP 0x42, or after SNAP (OUI 00:00:0c, PID 0x010b) for Cisco PVST+.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Bpdu(int version, int type, int flags,
                    BridgeId root, long rootPathCost, BridgeId bridge, int portId,
                    double messageAge, double maxAge, double helloTime, double forwardDelay) {
@@ -36,8 +38,18 @@ public record Bpdu(int version, int type, int flags,
         return (flags & 0x01) != 0;
     }
 
+    /**
+     * Parses bytes the caller has already identified as a BPDU, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Bpdu parse(byte[] p) throws IllegalRawDataException {
+        final Bpdu parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("a BPDU", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not a BPDU. */
-    public static Bpdu parse(byte[] p) {
+    private static Bpdu parseOrNull(byte[] p) {
         if (p.length < 4 || u16(p, 0) != 0x0000) return null;
         final int version = p[2] & 0xff;
         final int type = p[3] & 0xff;

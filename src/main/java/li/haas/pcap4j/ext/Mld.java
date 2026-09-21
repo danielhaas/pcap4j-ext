@@ -12,6 +12,8 @@ import java.util.List;
  * the IPv6 counterpart of IGMP, which pcap4j does not decode.
  * It rides inside ICMPv6: types 130 query, 131 report, 132 done, and 143 for a version 2 report.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Mld(int version, int type, int maxResponseMillis,
                   Inet6Address group, List<GroupRecord> records, List<Inet6Address> querySources,
                   Integer robustness, Integer queryInterval) {
@@ -91,14 +93,25 @@ public record Mld(int version, int type, int maxResponseMillis,
             off += length;
         }
         if (nextHeader != 58 || off + 4 > p.length) return null;   // 58 is ICMPv6
-        return parse(p[off] & 0xff, Arrays.copyOfRange(p, off + 4, p.length));
+        // a locator, so it stays permissive: most ICMPv6 messages are not MLD
+        return parseOrNull(p[off] & 0xff, Arrays.copyOfRange(p, off + 4, p.length));
+    }
+
+    /**
+     * Parses the body of an ICMPv6 message whose type the caller has already matched as MLD.
+     * Throws rather than returning null: the type says these bytes are MLD.
+     */
+    public static Mld parse(int icmpType, byte[] p) throws IllegalRawDataException {
+        final Mld parsed = parseOrNull(icmpType, p);
+        if (parsed == null) throw Raw.notA("MLD", p);
+        return parsed;
     }
 
     /**
      * Parses the body of an ICMPv6 message, i.e. everything after type, code and checksum.
      * Returns null if the type is not MLD or the body does not fit.
      */
-    public static Mld parse(int icmpType, byte[] p) {
+    private static Mld parseOrNull(int icmpType, byte[] p) {
         return switch (icmpType) {
             case TYPE_QUERY -> parseQuery(p);
             case TYPE_V1_REPORT, TYPE_DONE -> p.length < 20 ? null

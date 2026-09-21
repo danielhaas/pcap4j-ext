@@ -16,6 +16,8 @@ import java.util.Map;
  * The organisation-specific TLVs add VLAN data (802.1), link settings (802.3)
  * and, from LLDP-MED, real asset data such as model and serial number.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Lldp(String chassisId, String portId, Integer ttl,
                    String portDescription, String systemName, String systemDescription,
                    Integer capabilities, Integer enabledCapabilities,
@@ -75,8 +77,18 @@ public record Lldp(String chassisId, String portId, Integer ttl,
                 + (inventory.isEmpty() ? "" : " " + inventory);
     }
 
+    /**
+     * Parses bytes the caller has already identified as an LLDPDU, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Lldp parse(byte[] p) throws IllegalRawDataException {
+        final Lldp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("an LLDPDU", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not an LLDPDU. */
-    public static Lldp parse(byte[] p) {
+    private static Lldp parseOrNull(byte[] p) {
         String chassisId = null, portId = null, portDescription = null, systemName = null, systemDescription = null;
         Integer ttl = null, capabilities = null, enabled = null, portVlanId = null, maxFrame = null, voiceVlan = null;
         final List<InetAddress> management = new ArrayList<>();

@@ -11,6 +11,8 @@ import java.util.List;
  * Hosts announce which multicast groups they want; the elected querier on the segment asks
  * periodically who is still listening. Version 3 reports also name the sources a host will accept.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Igmp(int version, int type, int maxResponseSeconds,
                    Inet4Address group, List<GroupRecord> records, List<Inet4Address> querySources,
                    Integer robustness, Integer queryInterval) {
@@ -79,8 +81,18 @@ public record Igmp(int version, int type, int maxResponseSeconds,
                 + (querySources.isEmpty() ? "" : " sources=" + querySources.stream().map(Inet4Address::getHostAddress).toList());
     }
 
+    /**
+     * Parses bytes the caller has already identified as IGMP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Igmp parse(byte[] p) throws IllegalRawDataException {
+        final Igmp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("IGMP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not IGMP. */
-    public static Igmp parse(byte[] p) {
+    private static Igmp parseOrNull(byte[] p) {
         if (p.length < 8) return null;
         final int type = p[0] & 0xff;
 

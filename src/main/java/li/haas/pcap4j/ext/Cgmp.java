@@ -12,6 +12,8 @@ import java.util.List;
  * The router tells the switch which host joined or left which multicast group, so the switch
  * can forward that group to one port instead of flooding it. Superseded by IGMP snooping.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Cgmp(int version, int type, List<Entry> entries) {
 
     public static final int PROTOCOL_ID = 0x2001;
@@ -44,8 +46,18 @@ public record Cgmp(int version, int type, List<Entry> entries) {
         return "CGMP " + typeName() + " " + entries;
     }
 
+    /**
+     * Parses bytes the caller has already identified as CGMP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Cgmp parse(byte[] p) throws IllegalRawDataException {
+        final Cgmp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("CGMP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not CGMP. */
-    public static Cgmp parse(byte[] p) {
+    private static Cgmp parseOrNull(byte[] p) {
         if (p.length < 4) return null;
         final int version = (p[0] & 0xf0) >> 4;
         final int type = p[0] & 0x0f;

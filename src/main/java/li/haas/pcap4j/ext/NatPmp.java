@@ -8,6 +8,8 @@ import java.util.Arrays;
  * NAT Port Mapping Protocol (RFC 6886), which pcap4j does not decode.
  * UDP port 5351 towards the gateway, announcements to 224.0.0.1:5350. Version byte is 0.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record NatPmp(int opcode, Integer resultCode, Long epochSeconds,
                      Inet4Address externalAddress,
                      Integer internalPort, Integer externalPort, Long lifetime) {
@@ -39,8 +41,18 @@ public record NatPmp(int opcode, Integer resultCode, Long epochSeconds,
                 + (lifetime == null ? "" : " lifetime=" + lifetime + "s");
     }
 
+    /**
+     * Parses bytes the caller has already identified as NAT-PMP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static NatPmp parse(byte[] p) throws IllegalRawDataException {
+        final NatPmp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("NAT-PMP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not NAT-PMP. */
-    public static NatPmp parse(byte[] p) {
+    private static NatPmp parseOrNull(byte[] p) {
         if (p.length < 2 || p[0] != 0) return null;  // version 0; PCP uses 2
         final int opcode = p[1] & 0xff;
 

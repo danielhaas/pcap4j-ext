@@ -10,6 +10,8 @@ import java.util.Arrays;
  * It arrives after SNAP with OUI 00:00:0c and protocol ID 0x2004, sent to 01:00:0c:cc:cc:cc.
  * Payload: version byte, then TLVs of type (2), length (2, includes these 4 bytes), value.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Dtp(int version, String domain, int status, int trunkType, MacAddress neighbor) {
 
     private static final int TLV_DOMAIN = 0x0001;
@@ -56,8 +58,18 @@ public record Dtp(int version, String domain, int status, int trunkType, MacAddr
                 + (neighbor == null ? "" : " neighbor=" + neighbor);
     }
 
+    /**
+     * Parses bytes the caller has already identified as DTP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Dtp parse(byte[] p) throws IllegalRawDataException {
+        final Dtp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("DTP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not a DTP frame. */
-    public static Dtp parse(byte[] p) {
+    private static Dtp parseOrNull(byte[] p) {
         // there is no magic number, so require a plausible version and one well formed TLV
         if (p.length < 5) return null;
         final int version = p[0] & 0xff;

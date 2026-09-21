@@ -1,6 +1,7 @@
 package li.haas.pcap4j.ext;
 
 import org.junit.jupiter.api.Test;
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.packet.DnsPacket;
 
 import java.io.ByteArrayOutputStream;
@@ -11,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Name resolution, service discovery, address configuration and NAT traversal. */
@@ -32,7 +34,7 @@ class DiscoveryTest {
     }
 
     @Test
-    void parsesSsdpNotifyAndRejectsSip() {
+    void parsesSsdpNotifyAndRejectsSip() throws Exception {
         final String notify = String.join("\r\n",
                 "NOTIFY * HTTP/1.1",
                 "HOST: 239.255.255.250:1900",
@@ -60,7 +62,7 @@ class DiscoveryTest {
     }
 
     @Test
-    void readsSsdpSearchAsClientNotDevice() {
+    void readsSsdpSearchAsClientNotDevice() throws Exception {
         final String search = String.join("\r\n",
                 "M-SEARCH * HTTP/1.1",
                 "HOST: 239.255.255.250:1900",
@@ -76,7 +78,7 @@ class DiscoveryTest {
     }
 
     @Test
-    void parsesNbnsRegistrationAndNodeStatus() {
+    void parsesNbnsRegistrationAndNodeStatus() throws Exception {
         final byte[] encoded = ParserTest.encodeNetbiosName("GAMORA", 0x00);
         final ByteArrayOutputStream registration = new ByteArrayOutputStream();
         registration.writeBytes(hex("3a2e 2910 0001 0000 0000 0001"));   // registration, one question
@@ -111,7 +113,7 @@ class DiscoveryTest {
     }
 
     @Test
-    void parsesNbdsHostAnnouncement() {
+    void parsesNbdsHostAnnouncement() throws Exception {
         final ByteArrayOutputStream p = new ByteArrayOutputStream();
         p.write(0x11); p.write(0x0a);                                     // direct group datagram
         p.writeBytes(hex("3378"));                                        // datagram id
@@ -195,7 +197,7 @@ class DiscoveryTest {
     }
 
     @Test
-    void parsesDhcpv6SolicitAndReply() {
+    void parsesDhcpv6SolicitAndReply() throws Exception {
         // solicit with a DUID-LL client id, which carries the MAC
         final byte[] solicit = hex("01 123456 0001 000a 0003 0001 aa0000000055 0008 0002 00fa");
         final Dhcp6 asked = Dhcp6.parse(solicit);
@@ -219,14 +221,14 @@ class DiscoveryTest {
     }
 
     @Test
-    void parsesNatPmpAndPcpOnTheSamePort() {
+    void parsesNatPmpAndPcpOnTheSamePort() throws Exception {
         final NatPmp response = NatPmp.parse(hex("00 80 0000 000004d2 cb00710f"));
         assertNotNull(response);
         assertTrue(response.isResponse());
         assertEquals("external address", response.operation());
         assertEquals("203.0.113.15", response.externalAddress().getHostAddress());
         // PCP starts with version 2, so the two never collide
-        assertNull(Dhcp.parse(hex("00 80 0000 000004d2 cb00710f")));
+        assertThrows(IllegalRawDataException.class, () -> Dhcp.parse(hex("00 80 0000 000004d2 cb00710f")));
 
         final String clientAddress = "00000000000000000000ffff0a000007";
         final Pcp request = Pcp.parse(hex("02 01 0000 00000e10 " + clientAddress
@@ -236,11 +238,11 @@ class DiscoveryTest {
         assertFalse(request.response());
         assertEquals(8080, request.internalPort());
         assertTrue(request.isIpv4Client());
-        assertNull(NatPmp.parse(hex("02 01 0000 00000e10")));
+        assertThrows(IllegalRawDataException.class, () -> NatPmp.parse(hex("02 01 0000 00000e10")));
     }
 
     @Test
-    void readsXorMappedAddressFromStun() {
+    void readsXorMappedAddressFromStun() throws Exception {
         // binding success response with an XOR mapped IPv4 address: 203.0.113.9:62000
         final int port = 62000 ^ 0x2112;
         final byte[] address = hex("cb007109");
@@ -264,7 +266,7 @@ class DiscoveryTest {
     }
 
     @Test
-    void readsHttpRequestAndResponseHeaders() {
+    void readsHttpRequestAndResponseHeaders() throws Exception {
         final String request = "GET /index.html HTTP/1.1\r\nHost: example.test\r\n"
                 + "User-Agent: curl/8.6.0\r\nAccept: */*\r\n\r\n";
         final Http get = Http.parse(ascii(request));
@@ -284,7 +286,7 @@ class DiscoveryTest {
     }
 
     @Test
-    void reassemblesQuicClientHelloFromFragments() {
+    void reassemblesQuicClientHelloFromFragments() throws Exception {
         // the hello is split the way a browser splits one: out of order, with a gap until the last piece
         final byte[] hello = clientHello("quic.example");
         final int cut = hello.length / 2;

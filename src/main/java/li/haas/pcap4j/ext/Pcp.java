@@ -10,6 +10,8 @@ import java.util.Arrays;
  * Same UDP port 5351, told apart from NAT-PMP by the version byte (2 instead of 0).
  * Addresses are always 16 bytes; IPv4 is carried as an IPv4-mapped IPv6 address.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Pcp(int opcode, boolean response, long lifetime,
                   InetAddress clientAddress,          // requests only
                   Integer resultCode, Long epochSeconds,  // responses only
@@ -52,8 +54,18 @@ public record Pcp(int opcode, boolean response, long lifetime,
         };
     }
 
+    /**
+     * Parses bytes the caller has already identified as PCP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Pcp parse(byte[] p) throws IllegalRawDataException {
+        final Pcp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("PCP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not PCP version 2. */
-    public static Pcp parse(byte[] p) {
+    private static Pcp parseOrNull(byte[] p) {
         if (p.length < HEADER_LENGTH || p[0] != 2) return null;  // version 2; NAT-PMP uses 0
         final boolean response = (p[1] & 0x80) != 0;
         final int opcode = p[1] & 0x7f;

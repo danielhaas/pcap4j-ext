@@ -12,6 +12,8 @@ import java.util.List;
  * The datagram header names the sender and the workgroup; the SMB mailslot payload adds
  * the host name, OS version and what roles the host claims. pcap4j decodes none of it.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Nbds(int messageType, Netbios.Name sourceName, Netbios.Name destName, Inet4Address sourceAddress,
                    Integer browserCommand, String hostName, Integer osMajor, Integer osMinor,
                    Long serverType, String comment) {
@@ -104,8 +106,18 @@ public record Nbds(int messageType, Netbios.Name sourceName, Netbios.Name destNa
                 + (comment == null || comment.isEmpty() ? "" : " comment=" + comment);
     }
 
+    /**
+     * Parses bytes the caller has already identified as a NetBIOS datagram, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Nbds parse(byte[] p) throws IllegalRawDataException {
+        final Nbds parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("a NetBIOS datagram", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not a NetBIOS datagram. */
-    public static Nbds parse(byte[] p) {
+    private static Nbds parseOrNull(byte[] p) {
         if (p.length < 82) return null;
         final int messageType = p[0] & 0xff;
         // 0x10 direct unique, 0x11 direct group, 0x12 broadcast; the others carry no names

@@ -12,6 +12,8 @@ import java.util.List;
  * once every 30 seconds. Each side describes itself (actor) and what it hears (partner),
  * so one LACPDU names both ends of the link and says whether the bundle is actually up.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Lacp(int version, Endpoint actor, Endpoint partner, Integer collectorMaxDelay) {
 
     public static final int ETHER_TYPE = 0x8809;
@@ -101,8 +103,18 @@ public record Lacp(int version, Endpoint actor, Endpoint partner, Integer collec
         return "LACP actor " + actor + "  partner " + partner + (bundleUp() ? "  bundle up" : "");
     }
 
+    /**
+     * Parses bytes the caller has already identified as an LACPDU, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Lacp parse(byte[] p) throws IllegalRawDataException {
+        final Lacp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("an LACPDU", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not an LACPDU. */
-    public static Lacp parse(byte[] p) {
+    private static Lacp parseOrNull(byte[] p) {
         if (p.length < 36 || (p[0] & 0xff) != SUBTYPE_LACP) return null;
         final int version = p[1] & 0xff;
 

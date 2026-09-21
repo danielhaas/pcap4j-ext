@@ -11,6 +11,8 @@ import java.util.List;
  * A node status response is the interesting one: it lists every name the host owns
  * and ends with the adapter's MAC address.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Nbns(int transactionId, boolean response, int opcode,
                    List<Netbios.Name> questions,
                    List<Netbios.Name> names,          // names the host claims
@@ -48,8 +50,18 @@ public record Nbns(int transactionId, boolean response, int opcode,
                 + (unitId == null ? "" : " mac=" + unitId);
     }
 
+    /**
+     * Parses bytes the caller has already identified as NBNS, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Nbns parse(byte[] p) throws IllegalRawDataException {
+        final Nbns parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("NBNS", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not NBNS. */
-    public static Nbns parse(byte[] p) {
+    private static Nbns parseOrNull(byte[] p) {
         if (p.length < 12) return null;
         final int flags = u16(p, 2);
         final boolean response = (flags & 0x8000) != 0;

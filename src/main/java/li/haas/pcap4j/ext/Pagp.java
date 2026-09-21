@@ -11,6 +11,8 @@ import java.util.Arrays;
  * Like an LACPDU it describes both ends, and its TLVs add the neighbour's device and port name,
  * the same identification CDP gives.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Pagp(int version, int flags,
                    Endpoint local, Endpoint partner,
                    int partnerCount, String deviceName, String portName, MacAddress agportMac) {
@@ -87,15 +89,35 @@ public record Pagp(int version, int flags,
         }
     }
 
+    /**
+     * Parses bytes the caller has already identified as a PAgP flush packet, by protocol id and
+     * a version byte of 2. Throws rather than returning null.
+     */
+    public static Flush parseFlush(byte[] p) throws IllegalRawDataException {
+        final Flush parsed = parseFlushOrNull(p);
+        if (parsed == null) throw Raw.notA("a PAgP flush packet", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not a PAgP flush packet. */
-    public static Flush parseFlush(byte[] p) {
+    private static Flush parseFlushOrNull(byte[] p) {
         if (p.length < 18 || (p[0] & 0xff) != VERSION_FLUSH) return null;
         return new Flush(MacAddress.getByAddress(Arrays.copyOfRange(p, 2, 8)),
                 MacAddress.getByAddress(Arrays.copyOfRange(p, 8, 14)), u32(p, 14));
     }
 
+    /**
+     * Parses bytes the caller has already identified as a PAgP info packet, by protocol id and
+     * a version byte of 1. Throws rather than returning null.
+     */
+    public static Pagp parse(byte[] p) throws IllegalRawDataException {
+        final Pagp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("a PAgP info packet", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not a PAgP info packet. */
-    public static Pagp parse(byte[] p) {
+    private static Pagp parseOrNull(byte[] p) {
         if (p.length < 50) return null;
         final int version = p[0] & 0xff;
         if (version != VERSION_INFO) return null;   // a flush packet goes to parseFlush

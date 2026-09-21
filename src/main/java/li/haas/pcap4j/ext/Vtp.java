@@ -14,6 +14,8 @@ import java.util.List;
  * advertisement carries the VLAN database itself. The highest revision in a domain wins,
  * which is why a switch joining with a higher revision can overwrite everyone's VLANs.
  */
+import org.pcap4j.packet.IllegalRawDataException;
+
 public record Vtp(int version, int code, String domain, Long revision,
                   Inet4Address updater, String updateTimestamp, String md5,
                   Integer followers, List<Vlan> vlans, Integer startValue) {
@@ -70,8 +72,18 @@ public record Vtp(int version, int code, String domain, Long revision,
                 + (vlans.isEmpty() ? "" : " vlans=" + vlans);
     }
 
+    /**
+     * Parses bytes the caller has already identified as VTP, for example by protocol id or port.
+     * Throws rather than returning null: at this point the bytes claim to be this protocol.
+     */
+    public static Vtp parse(byte[] p) throws IllegalRawDataException {
+        final Vtp parsed = parseOrNull(p);
+        if (parsed == null) throw Raw.notA("VTP", p);
+        return parsed;
+    }
+
     /** Returns null if the data is not VTP. */
-    public static Vtp parse(byte[] p) {
+    private static Vtp parseOrNull(byte[] p) {
         if (p.length < DOMAIN_OFFSET + DOMAIN_LENGTH) return null;
         final int version = p[0] & 0xff;
         final int code = p[1] & 0xff;
