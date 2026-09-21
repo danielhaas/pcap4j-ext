@@ -12,6 +12,7 @@ import org.pcap4j.packet.LlcPacket;
 import org.pcap4j.packet.Packet;
 import org.pcap4j.packet.SnapPacket;
 import org.pcap4j.packet.TcpPacket;
+import org.pcap4j.packet.UnknownPacket;
 import org.pcap4j.packet.UdpPacket;
 import org.pcap4j.packet.namednumber.EtherType;
 
@@ -67,12 +68,51 @@ public final class Protocols {
         }
     }
 
+    /**
+     * The packet's layers, outermost first, including ones pcap4j hands over as raw data.
+     * An 802.1ad or legacy QinQ tag is decoded here, because pcap4j knows only 0x8100 and would
+     * otherwise stop at the outer tag and hide everything behind it.
+     */
+    public static Iterable<Packet> layers(Packet packet) {
+        final List<Packet> out = new ArrayList<>();
+        for (Packet layer = packet; layer != null; layer = next(layer)) {
+            out.add(layer);
+        }
+        return out;
+    }
+
+    /** The next layer, decoding a stacked VLAN tag that pcap4j left as raw data. */
+    private static Packet next(Packet packet) {
+        final Packet payload = packet.getPayload();
+        final EtherType type = switch (packet) {
+            case EthernetPacket eth -> eth.getHeader().getType();
+            case Dot1qVlanTagPacket tag -> tag.getHeader().getType();
+            default -> null;
+        };
+        if (payload instanceof UnknownPacket && type != null) {
+            final int value = type.value() & 0xffff;
+            if (value == ETHER_TYPE_8021AD || value == ETHER_TYPE_QINQ_LEGACY) {
+                final byte[] raw = payload.getRawData();
+                try {
+                    return Dot1qVlanTagPacket.newPacket(raw, 0, raw.length);
+                } catch (IllegalRawDataException e) {
+                    return payload;
+                }
+            }
+        }
+        return payload;
+    }
+
+    /** 802.1ad, and the pre-standard tag some switches still use. */
+    public static final int ETHER_TYPE_8021AD = 0x88a8;
+    public static final int ETHER_TYPE_QINQ_LEGACY = 0x9100;
+
     /** Walks the packet's layers and parses what it recognises. Never returns null. */
     public static Decoded decode(Packet packet) {
         final List<Protocol> found = new ArrayList<>();
         final List<String> rejected = new ArrayList<>();
 
-        for (Packet layer = packet; layer != null; layer = layer.getPayload()) {
+        for (Packet layer : layers(packet)) {
             try {
                 decodeLayer(layer, found);
             } catch (IllegalRawDataException e) {
