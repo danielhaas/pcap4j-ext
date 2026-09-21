@@ -55,6 +55,22 @@ if (initial != null) {
 The Initial packet is decrypted with the keys derived from its own connection id and the salt from
 RFC 9001, so no secrets are required.
 
+### DNS based protocols
+
+`Mdns` and `Llmnr` take a `DnsPacket` that the caller builds, so pcap4j needs one of its packet
+factories on the classpath to decode record data:
+
+```xml
+<dependency>
+    <groupId>org.pcap4j</groupId>
+    <artifactId>pcap4j-packetfactory-static</artifactId>
+    <version>1.8.2</version>
+</dependency>
+```
+
+Without it, `DnsPacket.newPacket` throws when it reaches the first resource record. The dependency is
+declared optional here so it is not forced on callers who use the properties based factory instead.
+
 ## Things to know
 
 - **Some of this is reverse engineered.** DTP, PAgP, UDLD and CGMP are Cisco proprietary and have no

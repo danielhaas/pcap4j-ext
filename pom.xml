@@ -37,6 +37,17 @@
         </dependency>
 
         <dependency>
+            <!--
+                pcap4j needs a packet factory to decode DNS record data, which the mDNS and LLMNR
+                parsers rely on. Optional so it is not forced on callers who pick the other factory.
+            -->
+            <groupId>org.pcap4j</groupId>
+            <artifactId>pcap4j-packetfactory-static</artifactId>
+            <version>1.8.2</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.11.3</version>
