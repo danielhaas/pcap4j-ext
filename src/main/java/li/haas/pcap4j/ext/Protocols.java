@@ -144,7 +144,11 @@ public final class Protocols {
             throws IllegalRawDataException {
         if (payload == null) return;
         final int etherType = type.value() & 0xffff;
-        if (etherType == Lldp.ETHER_TYPE) {
+        if (etherType == Eapol.ETHER_TYPE) {
+            found.add(Eapol.parse(payload.getRawData()));
+        } else if (etherType == Ptp.ETHER_TYPE) {
+            addIfPresent(found, Ptp.parse(payload.getRawData()));
+        } else if (etherType == Lldp.ETHER_TYPE) {
             found.add(Lldp.parse(payload.getRawData()));
         } else if (etherType == Lacp.ETHER_TYPE) {
             final byte[] raw = payload.getRawData();
@@ -189,7 +193,9 @@ public final class Protocols {
     private static void ipv4(IpV4Packet ip, List<Protocol> found) throws IllegalRawDataException {
         if (ip.getPayload() == null) return;
         final int protocol = ip.getHeader().getProtocol().value() & 0xff;
-        if (protocol == Igmp.IP_PROTOCOL) {
+        if (protocol == Ospf.IP_PROTOCOL) {
+            found.add(Ospf.parse(ip.getPayload().getRawData()));
+        } else if (protocol == Igmp.IP_PROTOCOL) {
             found.add(Igmp.parse(ip.getPayload().getRawData()));
         } else if (protocol == Vrrp.IP_PROTOCOL) {
             found.add(Vrrp.parse(ip.getPayload().getRawData(), false));
@@ -199,6 +205,10 @@ public final class Protocols {
     private static void ipv6(IpV6Packet ip, List<Protocol> found) throws IllegalRawDataException {
         if (ip.getPayload() == null) return;
         final int nextHeader = ip.getHeader().getNextHeader().value() & 0xff;
+        if (nextHeader == Ospf.IP_PROTOCOL) {
+            found.add(Ospf.parse(ip.getPayload().getRawData()));
+            return;
+        }
         if (nextHeader == Vrrp.IP_PROTOCOL) {
             found.add(Vrrp.parse(ip.getPayload().getRawData(), true));
             return;
@@ -240,6 +250,24 @@ public final class Protocols {
             } else {
                 found.add(NatPmp.parse(raw));
             }
+        }
+        if (on(src, dst, Glbp.PORT)) {
+            found.add(Glbp.parse(raw));
+        }
+        if (on(src, dst, Snmp.PORT) || on(src, dst, Snmp.TRAP_PORT)) {
+            found.add(Snmp.parse(raw));
+        }
+        if (on(src, dst, Syslog.PORT)) {
+            addIfPresent(found, Syslog.parse(raw));
+        }
+        if (on(src, dst, Tftp.PORT)) {
+            addIfPresent(found, Tftp.parse(raw));
+        }
+        if (on(src, dst, WsDiscovery.PORT)) {
+            addIfPresent(found, WsDiscovery.parse(raw));
+        }
+        if (on(src, dst, Ptp.EVENT_PORT) || on(src, dst, Ptp.GENERAL_PORT)) {
+            addIfPresent(found, Ptp.parse(raw));
         }
         if (on(src, dst, Mdns.PORT) || on(src, dst, Llmnr.PORT)) {
             final DnsPacket dns = DnsPacket.newPacket(raw, 0, raw.length);
