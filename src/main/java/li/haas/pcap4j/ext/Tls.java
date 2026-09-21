@@ -62,6 +62,13 @@ public record Tls(int recordVersion, int handshakeVersion, String serverName, Li
         // handshake header: type (1), length (3)
         int off = start;
         if ((p[off] & 0xff) != HANDSHAKE_CLIENT_HELLO) return null;
+
+        // the whole message has to be here: a truncated hello would parse to whatever extensions
+        // happen to have arrived, and a caller reassembling one would stop too early
+        final int handshakeLength = ((p[start + 1] & 0xff) << 16)
+                | ((p[start + 2] & 0xff) << 8) | (p[start + 3] & 0xff);
+        // 34 is the shortest possible body: version, random and three empty length fields
+        if (handshakeLength < 34 || start + 4 + handshakeLength > p.length) return null;
         final int handshakeVersion = u16(p, off + 4);
         off += 4 + 2 + 32;                       // header, version, random
 

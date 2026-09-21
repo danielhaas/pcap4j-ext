@@ -220,16 +220,19 @@ class ParserTest {
         sni.write(name.length >> 8); sni.write(name.length & 0xff);
         sni.writeBytes(name);
 
+        final java.io.ByteArrayOutputStream after = new java.io.ByteArrayOutputStream();
+        after.write(0x03); after.write(0x03);                               // version
+        after.writeBytes(new byte[32]);                                     // random
+        after.write(0x00);                                                  // no session id
+        after.write(0x00); after.write(0x02); after.write(0x13); after.write(0x01);   // one cipher suite
+        after.write(0x01); after.write(0x00);                               // one compression method
+        after.write(sni.size() >> 8); after.write(sni.size() & 0xff);
+        after.writeBytes(sni.toByteArray());
+
         final java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
         body.write(0x01);                                                   // client hello
-        body.writeBytes(new byte[3]);                                       // length, not checked
-        body.write(0x03); body.write(0x03);                                 // version
-        body.writeBytes(new byte[32]);                                      // random
-        body.write(0x00);                                                   // no session id
-        body.write(0x00); body.write(0x02); body.write(0x13); body.write(0x01);   // one cipher suite
-        body.write(0x01); body.write(0x00);                                 // one compression method
-        body.write(sni.size() >> 8); body.write(sni.size() & 0xff);
-        body.writeBytes(sni.toByteArray());
+        body.write(after.size() >> 16); body.write(after.size() >> 8); body.write(after.size() & 0xff);
+        body.writeBytes(after.toByteArray());
 
         final Tls tls = Tls.parseHandshake(body.toByteArray());
         assertNotNull(tls);

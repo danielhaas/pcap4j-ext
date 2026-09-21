@@ -316,16 +316,35 @@ class DiscoveryTest {
         sni.write(name.length >> 8); sni.write(name.length & 0xff);
         sni.writeBytes(name);
 
+        final ByteArrayOutputStream after = new ByteArrayOutputStream();
+        after.write(0x03); after.write(0x03);                      // version
+        after.writeBytes(new byte[32]);                            // random
+        after.write(0x00);                                         // no session id
+        after.write(0x00); after.write(0x02); after.write(0x13); after.write(0x01);
+        after.write(0x01); after.write(0x00);
+        after.write(sni.size() >> 8); after.write(sni.size() & 0xff);
+        after.writeBytes(sni.toByteArray());
+
+        // a real handshake length, so a truncated copy of this can be told from a whole one
         final ByteArrayOutputStream body = new ByteArrayOutputStream();
         body.write(0x01);
-        body.writeBytes(new byte[3]);
-        body.write(0x03); body.write(0x03);
-        body.writeBytes(new byte[32]);
-        body.write(0x00);
-        body.write(0x00); body.write(0x02); body.write(0x13); body.write(0x01);
-        body.write(0x01); body.write(0x00);
-        body.write(sni.size() >> 8); body.write(sni.size() & 0xff);
-        body.writeBytes(sni.toByteArray());
+        body.write(after.size() >> 16); body.write(after.size() >> 8); body.write(after.size() & 0xff);
+        body.writeBytes(after.toByteArray());
         return body.toByteArray();
+    }
+
+    /**
+     * A hello cut short must not parse. Wireshark found a server name in one of the real captures
+     * that we missed, because a partial hello parsed, reported no name, and the reassembler then
+     * believed it was finished and dropped the rest.
+     */
+    @Test
+    void refusesATruncatedClientHello() {
+        final byte[] hello = clientHello("quic.example");
+        for (int cut : new int[] {45, hello.length / 2, hello.length - 1}) {
+            assertNull(Tls.parseHandshake(java.util.Arrays.copyOfRange(hello, 0, cut)),
+                    "accepted " + cut + " bytes of a " + hello.length + " byte hello");
+        }
+        assertEquals("quic.example", Tls.parseHandshake(hello).serverName());
     }
 }

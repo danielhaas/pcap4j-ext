@@ -159,6 +159,16 @@ would depend on its automatic name.
 Records are immutable: a collection handed to one is copied, and what comes back cannot be changed.
 `QuicAssembler` is the only stateful class and is not thread safe.
 
+## Checking the parsers against Wireshark
+
+`tools/crosscheck.py` runs a capture through both this library and `tshark` and compares the field
+values one by one. Wireshark is an independent reading of the same bytes, which matters here: a test
+written by whoever wrote the parser will happily agree with the parser's own misreading.
+
+It found a real bug the unit tests could not: a client hello cut short still parsed, reported no
+server name, and the QUIC reassembler concluded it was finished and threw the rest away. One name in
+a real capture went missing that way.
+
 ## Licence
 
 MIT, the same as pcap4j. No pcap4j code was copied; the parsers were written from the RFCs, from
