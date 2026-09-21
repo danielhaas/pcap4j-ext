@@ -15,7 +15,7 @@ import org.pcap4j.packet.IllegalRawDataException;
 
 public record Pagp(int version, int flags,
                    Endpoint local, Endpoint partner,
-                   int partnerCount, String deviceName, String portName, MacAddress agportMac) {
+                   int partnerCount, String deviceName, String portName, MacAddress agportMac) implements Protocol {
 
     public static final int PROTOCOL_ID = 0x0104;
 

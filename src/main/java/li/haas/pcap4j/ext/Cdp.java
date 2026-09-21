@@ -15,10 +15,25 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
 public record Cdp(int version, int ttl,
                   String deviceId, String portId, String platform, String softwareVersion,
                   String vtpDomain, Integer nativeVlan, Integer duplex, Integer mtu,
-                  long capabilities, List<InetAddress> addresses, List<InetAddress> managementAddresses) {
+                  long capabilities, List<InetAddress> addresses, List<InetAddress> managementAddresses) implements Protocol {
+    public Cdp {
+        addresses = copy(addresses);
+        managementAddresses = copy(managementAddresses);
+    }
+
 
     public static final int PROTOCOL_ID = 0x2000;
 
@@ -168,4 +183,18 @@ public record Cdp(int version, int ttl,
     private static long u32(byte[] p, int off) {
         return ((long) u16(p, off) << 16) | u16(p, off + 2);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

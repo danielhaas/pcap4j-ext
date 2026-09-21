@@ -9,7 +9,24 @@ import java.util.List;
  * Everything after the handshake is encrypted, but the SNI extension travels in clear text,
  * so a capture shows which host each client is reaching for.
  */
-public record Tls(int recordVersion, int handshakeVersion, String serverName, List<String> alpn) {
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
+public record Tls(int recordVersion, int handshakeVersion, String serverName, List<String> alpn) implements Protocol {
+
+    /** The usual port. Detection is by the record and handshake structure, not by port. */
+    public static final int DEFAULT_PORT = 443;
+    public Tls {
+        alpn = copy(alpn);
+    }
+
 
     private static final int RECORD_HANDSHAKE = 22;
     private static final int HANDSHAKE_CLIENT_HELLO = 1;
@@ -95,4 +112,18 @@ public record Tls(int recordVersion, int handshakeVersion, String serverName, Li
     private static int u16(byte[] p, int off) {
         return ((p[off] & 0xff) << 8) | (p[off + 1] & 0xff);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

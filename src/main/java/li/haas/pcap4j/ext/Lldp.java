@@ -18,12 +18,24 @@ import java.util.Map;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.Collections;
+
+import java.util.LinkedHashSet;
+
+import java.util.Set;
+
 public record Lldp(String chassisId, String portId, Integer ttl,
                    String portDescription, String systemName, String systemDescription,
                    Integer capabilities, Integer enabledCapabilities,
                    List<InetAddress> managementAddresses,
                    Integer portVlanId, Map<Integer, String> vlanNames, Integer maxFrameSize,
-                   Integer voiceVlan, Map<String, String> inventory) {
+                   Integer voiceVlan, Map<String, String> inventory) implements Protocol {
+    public Lldp {
+        managementAddresses = copy(managementAddresses);
+        vlanNames = copy(vlanNames);
+        inventory = copy(inventory);
+    }
+
 
     public static final int ETHER_TYPE = 0x88cc;
 
@@ -232,4 +244,18 @@ public record Lldp(String chassisId, String portId, Integer ttl,
     private static int u16(byte[] p, int off) {
         return ((p[off] & 0xff) << 8) | (p[off + 1] & 0xff);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

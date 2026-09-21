@@ -14,7 +14,7 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
-public record Lacp(int version, Endpoint actor, Endpoint partner, Integer collectorMaxDelay) {
+public record Lacp(int version, Endpoint actor, Endpoint partner, Integer collectorMaxDelay) implements Protocol {
 
     public static final int ETHER_TYPE = 0x8809;
     public static final int SUBTYPE_LACP = 1;

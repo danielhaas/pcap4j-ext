@@ -11,7 +11,10 @@ import java.util.Arrays;
  * The mapped address in a response is the public address the NAT gave this client.
  */
 public record Stun(int messageType, InetAddress mappedAddress, int mappedPort,
-                   String software, String username) {
+                   String software, String username) implements Protocol {
+
+    /** The registered port. ICE uses arbitrary ports, so detection is by the magic cookie. */
+    public static final int DEFAULT_PORT = 3478;
 
     public static final int MAGIC_COOKIE = 0x2112a442;
     private static final int HEADER_LENGTH = 20;

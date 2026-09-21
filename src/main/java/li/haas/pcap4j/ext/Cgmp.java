@@ -14,7 +14,21 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
-public record Cgmp(int version, int type, List<Entry> entries) {
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
+public record Cgmp(int version, int type, List<Entry> entries) implements Protocol {
+    public Cgmp {
+        entries = copy(entries);
+    }
+
 
     public static final int PROTOCOL_ID = 0x2001;
 
@@ -72,4 +86,18 @@ public record Cgmp(int version, int type, List<Entry> entries) {
         }
         return new Cgmp(version, type, entries);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

@@ -11,7 +11,7 @@ public final class Netbios {
     private Netbios() {
     }
 
-    /** A decoded name with its suffix, e.g. GAMORA<00>. */
+    /** A decoded name with its suffix, e.g. GAMORA&lt;00&gt;. */
     public record Name(String name, int suffix) {
 
         /** What the suffix says the name is used for. */
@@ -41,7 +41,7 @@ public final class Netbios {
      * Decodes the name at the given offset. Returns null if the bytes are not a valid encoded name.
      * Only the flat (non-scoped) form is handled, which is all a LAN capture contains.
      */
-    public static Name decode(byte[] p, int off) {
+    public static Name parseName(byte[] p, int off) {
         if (off + 33 > p.length || (p[off] & 0xff) != 32) return null;
 
         final byte[] decoded = new byte[16];

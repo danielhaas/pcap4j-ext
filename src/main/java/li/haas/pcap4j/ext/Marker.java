@@ -14,7 +14,7 @@ import java.util.Arrays;
 import org.pcap4j.packet.IllegalRawDataException;
 
 public record Marker(int version, int type, int requesterPort, MacAddress requesterSystem,
-                     long transactionId) {
+                     long transactionId) implements Protocol {
 
     public static final int SUBTYPE = 2;
 

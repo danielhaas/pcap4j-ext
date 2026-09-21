@@ -18,7 +18,17 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
-public record Dhcp6(int messageType, int transactionId,
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
+public record DhcpV6(int messageType, int transactionId,
                     String clientDuid, MacAddress clientMac,   // MAC out of the DUID, when it has one
                     String serverDuid,
                     List<Inet6Address> addresses,              // IA_NA / IA_TA addresses
@@ -26,7 +36,14 @@ public record Dhcp6(int messageType, int transactionId,
                     List<Inet6Address> dnsServers,
                     String fqdn, String vendorClass,
                     Integer elapsedSeconds, Integer statusCode,
-                    int[] optionRequest) {
+                    List<Integer> optionRequest) implements Protocol {
+    public DhcpV6 {
+        addresses = copy(addresses);
+        prefixes = copy(prefixes);
+        dnsServers = copy(dnsServers);
+        optionRequest = copy(optionRequest);
+    }
+
 
     public static final int CLIENT_PORT = 546;
     public static final int SERVER_PORT = 547;
@@ -82,14 +99,14 @@ public record Dhcp6(int messageType, int transactionId,
      * Parses bytes the caller has already identified as DHCPv6, for example by protocol id or port.
      * Throws rather than returning null: at this point the bytes claim to be this protocol.
      */
-    public static Dhcp6 parse(byte[] p) throws IllegalRawDataException {
-        final Dhcp6 parsed = parseOrNull(p);
+    public static DhcpV6 parse(byte[] p) throws IllegalRawDataException {
+        final DhcpV6 parsed = parseOrNull(p);
         if (parsed == null) throw Raw.notA("DHCPv6", p);
         return parsed;
     }
 
     /** Returns null if the data is not DHCPv6. */
-    private static Dhcp6 parseOrNull(byte[] p) {
+    private static DhcpV6 parseOrNull(byte[] p) {
         if (p.length < 4) return null;
         final int messageType = p[0] & 0xff;
         if (messageType < 1 || messageType > 13) return null;
@@ -103,7 +120,7 @@ public record Dhcp6(int messageType, int transactionId,
         String clientDuid = null, serverDuid = null, fqdn = null, vendorClass = null;
         MacAddress clientMac = null;
         Integer elapsed = null, status = null;
-        int[] oro = null;
+        List<Integer> oro = null;
         final List<Inet6Address> addresses = new ArrayList<>();
         final List<Inet6Address> dns = new ArrayList<>();
         final List<String> prefixes = new ArrayList<>();
@@ -168,8 +185,8 @@ public record Dhcp6(int messageType, int transactionId,
                 case OPT_ELAPSED_TIME -> { if (len >= 2) elapsed = u16(p, v) / 100; }  // hundredths of a second
                 case OPT_STATUS_CODE -> { if (len >= 2) status = u16(p, v); }
                 case OPT_ORO -> {
-                    oro = new int[len / 2];
-                    for (int i = 0; i < oro.length; i++) oro[i] = u16(p, v + 2 * i);
+                    oro = new ArrayList<>(len / 2);
+                    for (int i = 0; i < len / 2; i++) oro.add(u16(p, v + 2 * i));
                 }
                 default -> { }
             }
@@ -177,7 +194,7 @@ public record Dhcp6(int messageType, int transactionId,
         }
 
         if (!sawOption) return null;
-        return new Dhcp6(messageType, xid, clientDuid, clientMac, serverDuid,
+        return new DhcpV6(messageType, xid, clientDuid, clientMac, serverDuid,
                 addresses, prefixes, dns, fqdn, vendorClass, elapsed, status, oro);
     }
 
@@ -232,4 +249,18 @@ public record Dhcp6(int messageType, int transactionId,
     private static int u16(byte[] p, int off) {
         return ((p[off] & 0xff) << 8) | (p[off + 1] & 0xff);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

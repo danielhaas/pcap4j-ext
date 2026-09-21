@@ -16,7 +16,23 @@ import java.util.Set;
  * DNS shaped, like mDNS, but for plain single-label host names rather than service discovery,
  * and Windows falls back to it when DNS has no answer. pcap4j only decodes port 53.
  */
-public record Llmnr(boolean response, Set<String> queried, Set<String> claimed, Set<String> addresses) {
+import java.util.ArrayList;
+
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.List;
+
+import java.util.Map;
+
+public record Llmnr(boolean response, Set<String> queried, Set<String> claimed, Set<String> addresses) implements Protocol {
+    public Llmnr {
+        queried = copy(queried);
+        claimed = copy(claimed);
+        addresses = copy(addresses);
+    }
+
 
     public static final int PORT = 5355;
 
@@ -62,4 +78,18 @@ public record Llmnr(boolean response, Set<String> queried, Set<String> claimed, 
             return name.getName();
         }
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

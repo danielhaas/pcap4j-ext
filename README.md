@@ -25,21 +25,35 @@ It is a companion, not a fork: add it next to pcap4j and hand it the raw payload
 
 ## Usage
 
-Every parser is a record with a static `parse` that returns `null` when the bytes are not that
-protocol, so it is safe to try several:
+The short way is to let `Protocols` route the packet. It knows the dispatch keys, including the
+awkward ones, such as NAT-PMP and PCP sharing a port and PAgP carrying two formats under one
+protocol id:
 
 ```java
-UdpPacket udp = packet.get(UdpPacket.class);
-byte[] payload = udp.getPayload().getRawData();
-
-Dhcp dhcp = Dhcp.parse(payload);
-if (dhcp != null) {
-    System.out.println(dhcp.hostName() + " asked for " + dhcp.requestedAddress());
+for (Protocol found : Protocols.decode(packet).found()) {
+    switch (found) {
+        case Cdp cdp -> System.out.println(cdp.deviceId() + " " + cdp.portId());
+        case Dhcp dhcp -> System.out.println(dhcp.hostName());
+        default -> { }
+    }
 }
 ```
 
-Protocols that sit under SNAP or a specific EtherType expose the identifier they use, for example
-`Cdp.PROTOCOL_ID`, `Lldp.ETHER_TYPE` or `Vrrp.IP_PROTOCOL`, so the caller can dispatch before parsing.
+`Protocol` is sealed, so a switch over it can be checked by the compiler. `Decoded` also carries
+`rejected()`, the messages from parsers whose layer identified them but whose bytes did not fit;
+counting those is a cheap way to notice a malformed frame or a dispatch mistake.
+
+The long way is to call a parser directly, which is what you want when you already know the layer:
+
+```java
+byte[] payload = packet.get(UdpPacket.class).getPayload().getRawData();
+Dhcp dhcp = Dhcp.parse(payload);          // throws IllegalRawDataException if it does not fit
+System.out.println(dhcp.hostName() + " asked for " + dhcp.requestedAddress());
+```
+
+Every parser exposes the key its caller dispatches on, such as `Cdp.PROTOCOL_ID`,
+`Lldp.ETHER_TYPE`, `Vrrp.IP_PROTOCOL` or `Ntp.PORT`. The sniffing parsers expose the port they
+usually appear on as `DEFAULT_PORT`, which is a hint rather than a key.
 
 QUIC needs one extra step, because a client hello no longer fits in a single packet:
 
@@ -100,7 +114,7 @@ caller can identify the protocol before parsing:
   marker protocol, HSRP, VRRP, DHCP, DHCPv6, NBNS, NBDS, NTP, IGMP, MLD, NAT-PMP and PCP.
 - **Sniffing**: nothing identifies the protocol beforehand, so the parser has to recognise itself and
   returns `null` when the bytes are not its own. This covers SSDP, STUN, TLS, HTTP and QUIC, plus the
-  locators `Mld.parseAfterIpv6` and `Netbios.decode`.
+  locators `Mld.parseAfterIpv6` and `Netbios.parseName`.
 
 The split is not cosmetic. While it was being introduced, the permissive contract had already let two
 bugs through: `Bpdu.parse` accepted a tunneled frame's payload as a BPDU with a 0.058 second max age,
@@ -137,6 +151,13 @@ mvn install
 
 Java 25, pcap4j 1.8.2, JUnit 5. The tests build their packets byte by byte from the specifications,
 so no capture files are needed and no real network data ships with the library.
+
+`mvn install` also attaches sources and javadoc jars, and the jar carries
+`Automatic-Module-Name: li.haas.pcap4j.ext`, since pcap4j is not modular and a real `module-info`
+would depend on its automatic name.
+
+Records are immutable: a collection handed to one is copied, and what comes back cannot be changed.
+`QuicAssembler` is the only stateful class and is not thread safe.
 
 ## Licence
 

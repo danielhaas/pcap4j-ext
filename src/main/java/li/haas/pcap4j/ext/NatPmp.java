@@ -12,7 +12,11 @@ import org.pcap4j.packet.IllegalRawDataException;
 
 public record NatPmp(int opcode, Integer resultCode, Long epochSeconds,
                      Inet4Address externalAddress,
-                     Integer internalPort, Integer externalPort, Long lifetime) {
+                     Integer internalPort, Integer externalPort, Long lifetime) implements Protocol {
+
+    /** The gateway listens here; announcements go to 224.0.0.1 on the port below. */
+    public static final int PORT = 5351;
+    public static final int ANNOUNCE_PORT = 5350;
 
     public static final int OP_EXTERNAL_ADDRESS = 0;
     public static final int OP_MAP_UDP = 1;

@@ -13,9 +13,24 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
 public record Igmp(int version, int type, int maxResponseSeconds,
                    Inet4Address group, List<GroupRecord> records, List<Inet4Address> querySources,
-                   Integer robustness, Integer queryInterval) {
+                   Integer robustness, Integer queryInterval) implements Protocol {
+    public Igmp {
+        records = copy(records);
+        querySources = copy(querySources);
+    }
+
 
     public static final int IP_PROTOCOL = 2;
 
@@ -168,4 +183,18 @@ public record Igmp(int version, int type, int maxResponseSeconds,
     private static int u16(byte[] p, int off) {
         return ((p[off] & 0xff) << 8) | (p[off + 1] & 0xff);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

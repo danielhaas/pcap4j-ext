@@ -13,11 +13,27 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
 public record Nbns(int transactionId, boolean response, int opcode,
                    List<Netbios.Name> questions,
                    List<Netbios.Name> names,          // names the host claims
                    List<Inet4Address> addresses,      // from NB records
-                   String unitId) {                   // MAC from a node status response
+                   String unitId) implements Protocol {
+    public Nbns {
+        questions = copy(questions);
+        names = copy(names);
+        addresses = copy(addresses);
+    }
+                   // MAC from a node status response
 
     public static final int PORT = 137;
 
@@ -77,7 +93,7 @@ public record Nbns(int transactionId, boolean response, int opcode,
 
         int off = 12;
         for (int i = 0; i < qdCount; i++) {
-            final Netbios.Name n = Netbios.decode(p, off);
+            final Netbios.Name n = Netbios.parseName(p, off);
             if (n == null) return null;
             questions.add(n);
             off += Netbios.encodedLength(p, off) + 4;  // plus type and class
@@ -86,7 +102,7 @@ public record Nbns(int transactionId, boolean response, int opcode,
 
         // answers and additional records have the same shape; authority records are skipped by the counts
         for (int i = 0; i < anCount + arCount && off + 10 <= p.length; i++) {
-            final Netbios.Name owner = Netbios.decode(p, off);
+            final Netbios.Name owner = Netbios.parseName(p, off);
             if (owner == null) break;
             off += Netbios.encodedLength(p, off);
             if (off + 10 > p.length) break;
@@ -146,4 +162,18 @@ public record Nbns(int transactionId, boolean response, int opcode,
     private static int u16(byte[] p, int off) {
         return ((p[off] & 0xff) << 8) | (p[off + 1] & 0xff);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

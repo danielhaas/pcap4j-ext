@@ -12,7 +12,10 @@ import java.util.Arrays;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
-public record Dtp(int version, String domain, int status, int trunkType, MacAddress neighbor) {
+public record Dtp(int version, String domain, int status, int trunkType, MacAddress neighbor) implements Protocol {
+
+    /** SNAP protocol id, under OUI 00:00:0c. */
+    public static final int PROTOCOL_ID = 0x2004;
 
     private static final int TLV_DOMAIN = 0x0001;
     private static final int TLV_STATUS = 0x0002;

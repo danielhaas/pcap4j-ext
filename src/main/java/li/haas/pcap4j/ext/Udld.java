@@ -13,10 +13,24 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
 public record Udld(int version, int opcode, int flags,
                    String deviceId, String portId, String deviceName,
                    Integer messageInterval, Integer timeoutInterval, Long sequence,
-                   List<String> echo) {
+                   List<String> echo) implements Protocol {
+    public Udld {
+        echo = copy(echo);
+    }
+
 
     public static final int PROTOCOL_ID = 0x0111;
 
@@ -140,4 +154,18 @@ public record Udld(int version, int opcode, int flags,
         return ((long) (p[off] & 0xff) << 24) | ((p[off + 1] & 0xff) << 16)
                 | ((p[off + 2] & 0xff) << 8) | (p[off + 3] & 0xff);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

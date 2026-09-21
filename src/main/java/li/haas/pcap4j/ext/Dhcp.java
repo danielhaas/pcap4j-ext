@@ -17,6 +17,16 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
 public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
                    Inet4Address clientAddress,      // ciaddr, set when renewing
                    Inet4Address assignedAddress,    // yiaddr, what the server hands out
@@ -25,8 +35,14 @@ public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
                    Inet4Address subnetMask,         // option 1
                    List<Inet4Address> routers, List<Inet4Address> dnsServers,
                    String hostName, String domain, String vendorClass, String clientId,
-                   Long leaseSeconds, int[] parameterRequestList,
-                   String relayCircuitId, String relayRemoteId) {
+                   Long leaseSeconds, List<Integer> parameterRequestList,
+                   String relayCircuitId, String relayRemoteId) implements Protocol {
+    public Dhcp {
+        routers = copy(routers);
+        dnsServers = copy(dnsServers);
+        parameterRequestList = copy(parameterRequestList);
+    }
+
 
     public static final int SERVER_PORT = 67;
     public static final int CLIENT_PORT = 68;
@@ -78,7 +94,7 @@ public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
 
     /** The option numbers a client asks for; the order is characteristic of the OS. */
     public String fingerprint() {
-        if (parameterRequestList == null || parameterRequestList.length == 0) return null;
+        if (parameterRequestList == null || parameterRequestList.isEmpty()) return null;
         final StringBuilder sb = new StringBuilder();
         for (int o : parameterRequestList) {
             if (sb.length() > 0) sb.append(',');
@@ -132,7 +148,7 @@ public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
         String hostName = null, domain = null, vendorClass = null, clientId = null;
         String circuitId = null, remoteId = null;
         Long lease = null;
-        int[] parameters = null;
+        List<Integer> parameters = null;
 
         int off = 240;
         while (off < p.length) {
@@ -160,8 +176,8 @@ public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
                 case OPT_VENDOR_CLASS -> vendorClass = text(p, v, len);
                 case OPT_CLIENT_ID -> clientId = clientId(p, v, len);
                 case OPT_PARAMETER_REQUEST_LIST -> {
-                    parameters = new int[len];
-                    for (int i = 0; i < len; i++) parameters[i] = p[v + i] & 0xff;
+                    parameters = new ArrayList<>(len);
+                    for (int i = 0; i < len; i++) parameters.add(p[v + i] & 0xff);
                 }
                 case OPT_RELAY_AGENT -> {
                     // sub-options: 1 is the circuit (the switch port), 2 the remote id (the switch)
@@ -221,4 +237,18 @@ public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
         return ((long) (p[off] & 0xff) << 24) | ((p[off + 1] & 0xff) << 16)
                 | ((p[off + 2] & 0xff) << 8) | (p[off + 3] & 0xff);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

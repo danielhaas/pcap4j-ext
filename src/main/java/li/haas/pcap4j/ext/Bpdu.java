@@ -12,7 +12,12 @@ import org.pcap4j.packet.IllegalRawDataException;
 
 public record Bpdu(int version, int type, int flags,
                    BridgeId root, long rootPathCost, BridgeId bridge, int portId,
-                   double messageAge, double maxAge, double helloTime, double forwardDelay) {
+                   double messageAge, double maxAge, double helloTime, double forwardDelay) implements Protocol {
+
+    /** Cisco PVST+ carries a BPDU under this SNAP protocol id instead of LLC DSAP 0x42. */
+    public static final int PVST_PROTOCOL_ID = 0x010b;
+    /** The LLC service access point that carries a plain BPDU. */
+    public static final int LLC_SAP = 0x42;
 
     public static final int VERSION_STP = 0;
     public static final int VERSION_RSTP = 2;

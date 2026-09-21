@@ -15,7 +15,10 @@ import org.pcap4j.packet.IllegalRawDataException;
 public record Pcp(int opcode, boolean response, long lifetime,
                   InetAddress clientAddress,          // requests only
                   Integer resultCode, Long epochSeconds,  // responses only
-                  Integer protocol, Integer internalPort, Integer externalPort, InetAddress externalAddress) {
+                  Integer protocol, Integer internalPort, Integer externalPort, InetAddress externalAddress) implements Protocol {
+
+    /** PCP shares NAT-PMP's port and is told apart by this version byte. */
+    public static final int VERSION = 2;
 
     public static final int OP_ANNOUNCE = 0;
     public static final int OP_MAP = 1;

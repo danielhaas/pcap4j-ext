@@ -15,9 +15,23 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
 public record Vrrp(int version, int type, int virtualRouterId, int priority,
                    int advertIntervalCentiseconds, List<InetAddress> virtualAddresses,
-                   int authType, String authentication) {
+                   int authType, String authentication) implements Protocol {
+    public Vrrp {
+        virtualAddresses = copy(virtualAddresses);
+    }
+
 
     public static final int IP_PROTOCOL = 112;
 
@@ -114,4 +128,18 @@ public record Vrrp(int version, int type, int virtualRouterId, int priority,
         while (end > off && (p[end - 1] == 0 || p[end - 1] == ' ')) end--;
         return new String(p, off, Math.max(end - off, 0), StandardCharsets.US_ASCII);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

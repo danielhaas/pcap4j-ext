@@ -200,7 +200,7 @@ class DiscoveryTest {
     void parsesDhcpv6SolicitAndReply() throws Exception {
         // solicit with a DUID-LL client id, which carries the MAC
         final byte[] solicit = hex("01 123456 0001 000a 0003 0001 aa0000000055 0008 0002 00fa");
-        final Dhcp6 asked = Dhcp6.parse(solicit);
+        final DhcpV6 asked = DhcpV6.parse(solicit);
         assertNotNull(asked);
         assertEquals("solicit", asked.messageTypeName());
         assertNotNull(asked.clientMac());
@@ -212,7 +212,7 @@ class DiscoveryTest {
         final String iana = "0003 0028 11223344 00000708 00000b40 " + iaaddr;
         final String iaprefix = "001a 0019 00000e10 00001c20 38 20010db8beef00000000000000000000";
         final String iapd = "0019 0029 55667788 00000708 00000b40 " + iaprefix;
-        final Dhcp6 reply = Dhcp6.parse(hex("07 123456 0002 000a 0003 0001 bb0000000066 " + iana + " " + iapd));
+        final DhcpV6 reply = DhcpV6.parse(hex("07 123456 0002 000a 0003 0001 bb0000000066 " + iana + " " + iapd));
         assertNotNull(reply);
         assertTrue(reply.fromServer());
         assertEquals(1, reply.addresses().size());

@@ -16,11 +16,56 @@ import java.util.List;
  * connection id with a salt published in the RFC, so anyone can decrypt it. That is how the
  * client hello, and with it the server name, can still be read off the wire.
  */
-public record Quic(long version, String destinationConnectionId, String sourceConnectionId,
-                   List<Fragment> fragments) {
+import java.util.Collections;
 
-    /** One piece of the handshake, at its offset in the stream. A client hello spans several. */
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
+public record Quic(long version, String destinationConnectionId, String sourceConnectionId,
+                   List<Fragment> fragments) implements Protocol {
+
+    /** The usual port. Detection is by the long header and a known version, not by port. */
+    public static final int DEFAULT_PORT = 443;
+    public Quic {
+        fragments = copy(fragments);
+    }
+
+
+    /**
+     * One piece of the handshake, at its offset in the stream. A client hello spans several.
+     * The array component means equality has to be written out: a record would compare references.
+     */
     public record Fragment(long offset, byte[] data) {
+
+        public Fragment {
+            data = data.clone();
+        }
+
+        @Override
+        public byte[] data() {
+            return data.clone();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Fragment other
+                    && offset == other.offset && Arrays.equals(data, other.data);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Long.hashCode(offset) + Arrays.hashCode(data);
+        }
+
+        @Override
+        public String toString() {
+            return "fragment at " + offset + ", " + data.length + " bytes";
+        }
     }
 
     /** Initial salts, per version (RFC 9001 for v1, RFC 9369 for v2). */
@@ -256,4 +301,18 @@ public record Quic(long version, String destinationConnectionId, String sourceCo
         for (byte x : b) sb.append(String.format("%02x", x));
         return sb.toString();
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

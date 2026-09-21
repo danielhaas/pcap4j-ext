@@ -13,7 +13,7 @@ import java.util.Arrays;
 import org.pcap4j.packet.IllegalRawDataException;
 
 public record Ntp(int leapIndicator, int version, int mode, int stratum,
-                  int pollInterval, int precision, String referenceId) {
+                  int pollInterval, int precision, String referenceId) implements Protocol {
 
     public static final int PORT = 123;
 

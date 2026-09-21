@@ -16,7 +16,7 @@ import org.pcap4j.packet.IllegalRawDataException;
 
 public record Nbds(int messageType, Netbios.Name sourceName, Netbios.Name destName, Inet4Address sourceAddress,
                    Integer browserCommand, String hostName, Integer osMajor, Integer osMinor,
-                   Long serverType, String comment) {
+                   Long serverType, String comment) implements Protocol {
 
     public static final int PORT = 138;
 
@@ -124,10 +124,10 @@ public record Nbds(int messageType, Netbios.Name sourceName, Netbios.Name destNa
         if (messageType < 0x10 || messageType > 0x12) return null;
 
         final Inet4Address src = ipv4(p, 4);
-        final Netbios.Name sourceName = Netbios.decode(p, 14);
+        final Netbios.Name sourceName = Netbios.parseName(p, 14);
         if (sourceName == null) return null;
         final int destOff = 14 + Netbios.encodedLength(p, 14);
-        final Netbios.Name destName = Netbios.decode(p, destOff);
+        final Netbios.Name destName = Netbios.parseName(p, destOff);
         if (destName == null) return null;
 
         // the SMB payload follows; find the browser mailslot rather than decoding all of SMB

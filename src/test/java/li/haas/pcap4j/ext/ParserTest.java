@@ -82,7 +82,7 @@ class ParserTest {
     @Test
     void decodesNetbiosEncodedName() throws Exception {
         final byte[] encoded = encodeNetbiosName("GAMORA", 0x00);
-        final Netbios.Name name = Netbios.decode(encoded, 0);
+        final Netbios.Name name = Netbios.parseName(encoded, 0);
         assertNotNull(name);
         assertEquals("GAMORA", name.name());
         assertEquals(0x00, name.suffix());

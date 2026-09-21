@@ -17,7 +17,7 @@ import org.pcap4j.packet.IllegalRawDataException;
 
 public record Hsrp(int version, int opcode, int state, int group, long priority,
                    int helloSeconds, int holdSeconds, InetAddress virtualAddress,
-                   String authentication, MacAddress identifier) {
+                   String authentication, MacAddress identifier) implements Protocol {
 
     public static final int PORT_V1 = 1985;
     public static final int PORT_V6 = 2029;

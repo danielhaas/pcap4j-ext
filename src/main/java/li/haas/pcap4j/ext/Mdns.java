@@ -22,13 +22,24 @@ import java.util.Set;
  * pcap4j only decodes port 53, so the payload has to be handed to DnsPacket.newPacket separately.
  * What a device publishes here is self-reported, but it is the best passive source of host names.
  */
+import java.util.Collections;
+
 public record Mdns(String hostname,              // e.g. "gamora.local"
                    Set<String> addresses,        // A and AAAA records it announces
                    Set<String> services,         // service types it offers, e.g. "_smb._tcp.local"
                    Set<String> instances,        // e.g. "GAMORA._smb._tcp.local"
                    Map<String, String> txt,      // TXT key/value pairs, e.g. model=MacBookPro18,3
                    Map<String, Integer> ports,   // SRV port per instance, e.g. GAMORA._smb._tcp.local -> 445
-                   Set<String> browsing) {       // service types it is searching for
+                   Set<String> browsing) implements Protocol {
+    public Mdns {
+        addresses = copy(addresses);
+        services = copy(services);
+        instances = copy(instances);
+        txt = copy(txt);
+        ports = copy(ports);
+        browsing = copy(browsing);
+    }
+       // service types it is searching for
 
     public static final int PORT = 5353;
 
@@ -166,4 +177,18 @@ public record Mdns(String hostname,              // e.g. "gamora.local"
     private static String clean(String s) {
         return s.startsWith(".") ? s.substring(1) : s;
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

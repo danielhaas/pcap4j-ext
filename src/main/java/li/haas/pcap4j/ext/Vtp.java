@@ -16,9 +16,23 @@ import java.util.List;
  */
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.Collections;
+
+import java.util.LinkedHashMap;
+
+import java.util.LinkedHashSet;
+
+import java.util.Map;
+
+import java.util.Set;
+
 public record Vtp(int version, int code, String domain, Long revision,
                   Inet4Address updater, String updateTimestamp, String md5,
-                  Integer followers, List<Vlan> vlans, Integer startValue) {
+                  Integer followers, List<Vlan> vlans, Integer startValue) implements Protocol {
+    public Vtp {
+        vlans = copy(vlans);
+    }
+
 
     public static final int PROTOCOL_ID = 0x2003;
 
@@ -162,4 +176,18 @@ public record Vtp(int version, int code, String domain, Long revision,
         return ((long) (p[off] & 0xff) << 24) | ((p[off + 1] & 0xff) << 16)
                 | ((p[off + 2] & 0xff) << 8) | (p[off + 3] & 0xff);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

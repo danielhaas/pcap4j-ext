@@ -11,7 +11,24 @@ import java.util.Map;
  * HTTP-like text over UDP 1900, multicast to 239.255.255.250; responses are unicast to the searching host.
  * Everything here is self-reported by the device and trivially spoofed.
  */
-public record Ssdp(Type type, Map<String, String> headers) {
+import java.util.ArrayList;
+
+import java.util.Collections;
+
+import java.util.LinkedHashSet;
+
+import java.util.List;
+
+import java.util.Set;
+
+public record Ssdp(Type type, Map<String, String> headers) implements Protocol {
+
+    /** Multicast port; a unicast reply can come from any port, so this is a hint, not a key. */
+    public static final int PORT = 1900;
+    public Ssdp {
+        headers = copy(headers);
+    }
+
 
     public enum Type {
         /** A device announcing itself (ssdp:alive) or leaving (ssdp:byebye). */
@@ -150,4 +167,18 @@ public record Ssdp(Type type, Map<String, String> headers) {
         }
         return new Ssdp(type, headers);
     }
+
+    // defensive copies that keep insertion order, which several of these rely on
+    private static <T> List<T> copy(List<T> in) {
+        return in == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(in));
+    }
+
+    private static <T> Set<T> copy(Set<T> in) {
+        return in == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(in));
+    }
+
+    private static <K, V> Map<K, V> copy(Map<K, V> in) {
+        return in == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(in));
+    }
+
 }

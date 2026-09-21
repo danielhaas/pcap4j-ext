@@ -8,7 +8,10 @@ import java.nio.charset.StandardCharsets;
  * Only requests that start at the beginning of a segment are read; this is not a stream reassembler.
  */
 public record Http(String method, String target, String version,
-                   String host, String userAgent, String server) {
+                   String host, String userAgent, String server) implements Protocol {
+
+    /** The usual port. Detection is by the request line, not by port. */
+    public static final int DEFAULT_PORT = 80;
 
     private static final String[] METHODS = {"GET ", "POST ", "HEAD ", "PUT ", "DELETE ",
             "OPTIONS ", "PATCH ", "TRACE ", "CONNECT ", "PROPFIND ", "M-SEARCH "};
