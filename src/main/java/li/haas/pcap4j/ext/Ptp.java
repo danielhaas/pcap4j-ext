@@ -1,10 +1,24 @@
 package li.haas.pcap4j.ext;
 
 /**
- * PTP, the precision time protocol (IEEE 1588-2008), which pcap4j does not decode.
- * EtherType 0x88f7 for the layer 2 mapping, or UDP 319 for event messages and 320 for the rest.
- * An announce message names the grandmaster clock and how good it claims to be, which is how
- * the timing hierarchy of a network is worked out.
+ * PTP, the Precision Time Protocol (IEEE 1588-2008, known as PTPv2), which pcap4j does not decode.
+ *
+ * <p>Where NTP is happy with milliseconds, PTP aims at sub-microsecond and gets there by having the network
+ * hardware timestamp the packets. A best master clock algorithm elects a grandmaster from the announce
+ * messages, everyone else synchronises down the tree from it, and delay requests measure the path so it can
+ * be subtracted. Announce messages are therefore the interesting ones: each clock advertises its own
+ * priority and quality, so the announces on a segment tell you which clock won, how good it claims to be
+ * and how many hops away it is. Common on broadcast, industrial and trading networks, and increasingly in
+ * mobile backhaul.
+ *
+ * <p><b>On the wire:</b> either EtherType 0x88f7 for the layer 2 mapping, usually to 01:1b:19:00:00:00, or
+ * UDP, with the timestamped event messages on port 319 and everything else on port 320. A 34-byte common
+ * header, then the body for the message type.
+ *
+ * <p><b>Parsed:</b> the common header for every type, and the grandmaster fields for an announce. Clock
+ * identities are rendered as the usual colon-separated eight bytes. See {@link #clockClassName()} and
+ * {@link #timeSourceName()} for what the grandmaster claims about itself. Timestamps themselves are not
+ * read; this identifies the timing hierarchy rather than measuring it.
  */
 public record Ptp(int version, int messageType, int domain, String sourceClockId, int sourcePort,
                   long sequenceId,

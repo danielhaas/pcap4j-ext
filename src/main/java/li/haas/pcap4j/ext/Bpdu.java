@@ -1,15 +1,28 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.util.Arrays;
 
 /**
- * Spanning Tree BPDU (IEEE 802.1D / 802.1w / 802.1s common part), which pcap4j does not decode.
- * It arrives after an LLC header with DSAP/SSAP 0x42, or after SNAP (OUI 00:00:0c, PID 0x010b) for Cisco PVST+.
+ * Spanning Tree BPDU (IEEE 802.1D, 802.1w for RSTP and 802.1s for MSTP), which pcap4j does not decode.
+ *
+ * <p>Spanning tree is what keeps a switched network loop free: every switch advertises who it thinks the
+ * root bridge is and what that root costs it, and the switch with the numerically lowest bridge id wins.
+ * Ports that do not lie on the cheapest path to the root are blocked. A BPDU therefore tells you the shape
+ * of the layer 2 topology as the switches themselves see it, which root they agree on, and, through the
+ * topology change flag, whether that agreement is currently being rebuilt.
+ *
+ * <p><b>On the wire:</b> after an LLC header with DSAP/SSAP 0x42, or after SNAP (OUI 00:00:0c, protocol id
+ * 0x010b) for Cisco PVST+, which sends one BPDU per VLAN. Destination is 01:80:c2:00:00:00, or
+ * 01:00:0c:cc:cc:cd for PVST+, every two seconds by default, and the frame never leaves the link it was
+ * sent on.
+ *
+ * <p><b>Parsed:</b> the part all three versions share. The root and sending bridge ids, the path cost, the
+ * port id and the four timers. A topology change notification (type 0x80) carries nothing else, so only the
+ * version and type are set for it. MSTP's per-instance records after the common 35 bytes are not read.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Bpdu(int version, int type, int flags,
                    BridgeId root, long rootPathCost, BridgeId bridge, int portId,
                    double messageAge, double maxAge, double helloTime, double forwardDelay) implements Protocol {

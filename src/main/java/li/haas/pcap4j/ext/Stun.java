@@ -6,9 +6,22 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
- * STUN (RFC 5389), which pcap4j does not decode. Port 3478 by default, but ICE runs it on
- * arbitrary ports, so it is recognised by the magic cookie instead.
- * The mapped address in a response is the public address the NAT gave this client.
+ * STUN (RFC 5389), which pcap4j does not decode.
+ *
+ * <p>A host behind a NAT cannot see its own public address; STUN is how it asks. It sends a binding request
+ * to a server outside, and the server replies with the address and port the request appeared to come from.
+ * That answer is the basis of nearly all peer-to-peer media: WebRTC, SIP, game consoles and VPN hole
+ * punching all run STUN, usually as part of ICE, before anything else flows. So a binding response tells
+ * you the public address a host was handed, and a burst of them tells you a real-time session is starting.
+ *
+ * <p><b>On the wire:</b> UDP 3478 by default, but ICE runs it on whatever ephemeral ports the candidates
+ * use, so this parser recognises it by the 0x2112a442 magic cookie in the header rather than by port. The
+ * modern XOR-MAPPED-ADDRESS attribute masks the address with that cookie so that a NAT rewriting payloads
+ * cannot mangle it; the mask is undone here, and the older plain MAPPED-ADDRESS is read too.
+ *
+ * <p><b>Parsed:</b> the message type, the mapped address and port, and the software and username attributes
+ * when present. See {@link #messageClass()} and {@link #method()}. {@link #parse(byte[])} returns null
+ * rather than throwing when the bytes are not STUN.
  */
 public record Stun(int messageType, InetAddress mappedAddress, int mappedPort,
                    String software, String username) implements Protocol {

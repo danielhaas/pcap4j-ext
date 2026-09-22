@@ -1,5 +1,7 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
@@ -8,12 +10,24 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * NetBIOS Datagram Service (RFC 1002), UDP 138, and the Windows Browser announcements it carries.
- * The datagram header names the sender and the workgroup; the SMB mailslot payload adds
- * the host name, OS version and what roles the host claims. pcap4j decodes none of it.
+ * NetBIOS Datagram Service (RFC 1002), UDP 138, and the Windows Browser announcements it carries. pcap4j
+ * decodes neither.
+ *
+ * <p>The connectionless half of NetBIOS over TCP/IP, and the transport for the old Windows Browser service,
+ * which is how a workgroup built its network neighbourhood before Active Directory. Hosts broadcast a host
+ * announcement every twelve minutes naming themselves, their workgroup, their OS version and the roles they
+ * claim: workstation, server, domain controller, print or SQL server, master browser. It is legacy, but it
+ * is unauthenticated, unsolicited and still switched on by default on plenty of machines, which makes it a
+ * free inventory of the Windows hosts on a segment.
+ *
+ * <p><b>On the wire:</b> a datagram header with the message type, the source IP and port and the encoded
+ * source and destination NetBIOS names, then an SMB transaction writing to the \MAILSLOT\BROWSE mailslot,
+ * whose body is the browser command.
+ *
+ * <p><b>Parsed:</b> the datagram header and, when a browser mailslot is present, the command, the announced
+ * host name, the OS version and the server type bitmap. See {@link #workgroup()}, {@link #roles()} and
+ * {@link #osVersion()}.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Nbds(int messageType, Netbios.Name sourceName, Netbios.Name destName, Inet4Address sourceAddress,
                    Integer browserCommand, String hostName, Integer osMajor, Integer osMinor,
                    Long serverType, String comment) implements Protocol {

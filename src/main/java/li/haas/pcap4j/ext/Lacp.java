@@ -1,5 +1,6 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.util.ArrayList;
@@ -7,13 +8,23 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * LACP (IEEE 802.1AX, formerly 802.3ad), which pcap4j does not decode.
- * A slow protocol: EtherType 0x8809, subtype 1, sent to 01:80:c2:00:00:02, once a second or
- * once every 30 seconds. Each side describes itself (actor) and what it hears (partner),
- * so one LACPDU names both ends of the link and says whether the bundle is actually up.
+ * LACP, the Link Aggregation Control Protocol (IEEE 802.1AX, formerly 802.3ad), which pcap4j does not
+ * decode.
+ *
+ * <p>Bundling several physical links into one logical link only works if both ends agree about it; a bundle
+ * configured on one side alone is a loop. LACP is that agreement. Each side describes itself as the actor
+ * and repeats back what it hears as the partner, so a single LACPDU names both ends of the link, the key
+ * that groups the ports into one bundle, and the state flags that say whether the link is actually
+ * collecting and distributing traffic or merely trying to.
+ *
+ * <p><b>On the wire:</b> a slow protocol. EtherType 0x8809, subtype 1, to 01:80:c2:00:00:02, once a second
+ * in fast mode or once every 30 seconds in slow mode. Never forwarded by a bridge.
+ *
+ * <p><b>Parsed:</b> both endpoints, each with system priority and MAC, key, port priority and number, and
+ * the decoded state flags, plus the collector max delay. See {@link #bundleUp()}, which is true only when
+ * both ends report synchronised, collecting and distributing, and {@link #partnerMissing()} for the
+ * all-zero partner that means nobody is answering.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Lacp(int version, Endpoint actor, Endpoint partner, Integer collectorMaxDelay) implements Protocol {
 
     public static final int ETHER_TYPE = 0x8809;

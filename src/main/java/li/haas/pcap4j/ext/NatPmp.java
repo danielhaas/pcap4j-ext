@@ -1,15 +1,28 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 
 /**
  * NAT Port Mapping Protocol (RFC 6886), which pcap4j does not decode.
- * UDP port 5351 towards the gateway, announcements to 224.0.0.1:5350. Version byte is 0.
+ *
+ * <p>Apple's way for an application behind a NAT to ask the gateway to open a port for it, without anyone
+ * configuring anything. The client asks for a mapping and a lifetime, the gateway answers with the external
+ * port it actually assigned, and the client renews before the lifetime runs out. Capturing it tells you
+ * which hosts are opening inbound holes in the perimeter and for which ports, and the announcements tell
+ * you when the gateway's public address changed.
+ *
+ * <p><b>On the wire:</b> UDP 5351 towards the gateway; unsolicited announcements of a new external address
+ * go to 224.0.0.1 on UDP 5350. The version byte is 0, which is how it is told apart from PCP, its
+ * successor, sharing the same port.
+ *
+ * <p><b>Parsed:</b> the opcode, and for a response the result code, the seconds since the gateway booted,
+ * the external address, the internal and external ports and the granted lifetime. A lifetime of zero is a
+ * request to delete the mapping.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record NatPmp(int opcode, Integer resultCode, Long epochSeconds,
                      Inet4Address externalAddress,
                      Integer internalPort, Integer externalPort, Long lifetime) implements Protocol {

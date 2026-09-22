@@ -4,8 +4,20 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * TFTP (RFC 1350), UDP 69, which pcap4j does not decode.
- * Switches and phones fetch their configuration and firmware with it, unauthenticated and in
- * clear text, so a read request names a file worth knowing about and often the device asking.
+ *
+ * <p>A file transfer protocol with no authentication, no encryption and no directory listing, which is
+ * exactly why it is still everywhere in network infrastructure. Switches, routers, phones and thin clients
+ * fetch their configuration and firmware with it at boot, and back their configuration up to it afterwards.
+ * A read request names a file worth knowing about, frequently a device-specific configuration whose name
+ * contains the device's MAC or serial number, and the server that holds it.
+ *
+ * <p><b>On the wire:</b> a request goes to UDP 69; the server then answers from an ephemeral port and the
+ * transfer continues between that port and the client's, so only the first packet of a transfer is on the
+ * well-known port.
+ *
+ * <p><b>Parsed:</b> the opcode and, for a read or write request, the filename and transfer mode; for an
+ * error, the code and message. Data and ack packets are identified but their payload is not collected.
+ * {@link #parse(byte[])} returns null rather than throwing when the bytes are not TFTP.
  */
 public record Tftp(int opcode, String filename, String mode, Integer errorCode, String errorMessage)
         implements Protocol {

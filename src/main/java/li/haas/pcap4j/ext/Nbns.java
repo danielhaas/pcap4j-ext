@@ -1,28 +1,35 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-
-/**
- * NetBIOS Name Service (RFC 1002), UDP 137. A DNS-shaped message with NetBIOS names.
- * A node status response is the interesting one: it lists every name the host owns
- * and ends with the adapter's MAC address.
- */
-import org.pcap4j.packet.IllegalRawDataException;
-
 import java.util.Collections;
-
 import java.util.LinkedHashMap;
-
 import java.util.LinkedHashSet;
-
+import java.util.List;
 import java.util.Map;
-
 import java.util.Set;
 
+/**
+ * NetBIOS Name Service (RFC 1002), UDP 137, which pcap4j does not decode.
+ *
+ * <p>Name resolution for Windows networking before DNS took it over, and still enabled by default on many
+ * hosts. The message is DNS shaped but carries NetBIOS names, which are 15 characters plus a one-byte
+ * suffix saying what the name is for. The one worth having is the node status response: ask any host and it
+ * lists every name it owns, which gives you the machine name, the workgroup or domain, the logged-on user
+ * in some configurations, and the adapter's MAC address at the end. No authentication, one packet, from any
+ * host on the segment.
+ *
+ * <p><b>On the wire:</b> UDP 137, broadcast for a query, unicast for a reply. Names are first-level
+ * encoded, so the 16 name bytes take 32 characters on the wire.
+ *
+ * <p><b>Parsed:</b> the transaction id, the opcode, the questions, the names a host claims with their
+ * suffixes, the addresses from NB records, and the unit id, which is the MAC from a node status response.
+ * See {@link Netbios.Name} for the suffix decoding.
+ */
 public record Nbns(int transactionId, boolean response, int opcode,
                    List<Netbios.Name> questions,
                    List<Netbios.Name> names,          // names the host claims

@@ -1,5 +1,6 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.nio.charset.StandardCharsets;
@@ -7,12 +8,21 @@ import java.util.Arrays;
 
 /**
  * Cisco Port Aggregation Protocol, the pre-standard counterpart of LACP, which pcap4j does not decode.
- * SNAP with OUI 00:00:0c and protocol ID 0x0104, sent to 01:00:0c:cc:cc:cc.
- * Like an LACPDU it describes both ends, and its TLVs add the neighbour's device and port name,
- * the same identification CDP gives.
+ *
+ * <p>PAgP does what LACP does, bundle several links into one and make sure both ends agree, and predates
+ * the standard. Cisco equipment still defaults to it in some configurations, and a link where one end runs
+ * PAgP and the other LACP will never bundle, which is a common enough fault that it is worth being able to
+ * see which of the two a port is speaking. Its TLVs also carry the neighbour's device and port name, the
+ * same identification CDP gives, so a PAgP frame identifies its sender even without CDP.
+ *
+ * <p><b>On the wire:</b> SNAP with OUI 00:00:0c and protocol id 0x0104, to 01:00:0c:cc:cc:cc. Two different
+ * formats share that id: version 1 is the info packet that carries the state, version 2 is a flush packet,
+ * sent when a conversation moves between links, in the same role as the LACP marker.
+ *
+ * <p><b>Parsed:</b> the info packet into both endpoints, each with device id, learn capability, port
+ * priority and ifindex, plus the partner count, the device and port name and the agport MAC. Flush packets
+ * are a different shape and are read by {@link #parseFlush(byte[])} into {@link Pagp.Flush}.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Pagp(int version, int flags,
                    Endpoint local, Endpoint partner,
                    int partnerCount, String deviceName, String portName, MacAddress agportMac) implements Protocol {

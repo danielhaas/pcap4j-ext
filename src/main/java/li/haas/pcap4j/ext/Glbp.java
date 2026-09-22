@@ -11,10 +11,23 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Cisco Gateway Load Balancing Protocol, the third of the first hop redundancy protocols
- * alongside HSRP and VRRP, which pcap4j does not decode. UDP 3222, to 224.0.0.102 or ff02::66.
- * Unlike the other two it shares the load: one active virtual gateway hands out several virtual
- * MACs, each owned by a forwarder, so a group has one AVG and several AVFs.
+ * Cisco Gateway Load Balancing Protocol, the third of the first hop redundancy protocols alongside HSRP and
+ * VRRP, which pcap4j does not decode.
+ *
+ * <p>HSRP and VRRP give a group one virtual address answered by one router at a time; the standby routers
+ * do nothing but wait. GLBP shares the load instead. One router is elected active virtual gateway and hands
+ * out up to four virtual MACs for the single virtual IP, one per forwarder, replying to each host's ARP
+ * with a different one. So a group has one AVG and several AVFs, and the weighting decides how much traffic
+ * each forwarder attracts.
+ *
+ * <p><b>On the wire:</b> UDP 3222, to 224.0.0.102 or ff02::66, every three seconds by default. The payload
+ * is a version and an eight-byte group header, then TLVs of type (1 byte) and length (1 byte) covering the
+ * hello, the per-forwarder state and authentication.
+ *
+ * <p><b>Parsed:</b> the group number and owner id, the gateway state and priority, the hello and hold
+ * timers, the virtual address, every forwarder with its state, priority, weight and virtual MAC, and the
+ * authentication TLV. See {@link #usesPlainTextAuthentication()}, since GLBP's plain text mode puts the
+ * password on the wire in every hello.
  */
 public record Glbp(int version, int group, MacAddress ownerId,
                    Integer gatewayState, Integer gatewayPriority,

@@ -1,30 +1,36 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Cisco Discovery Protocol, which pcap4j does not decode.
- * SNAP with OUI 00:00:0c and protocol ID 0x2000, sent to 01:00:0c:cc:cc:cc.
- * Header: version (1), TTL (1), checksum (2), then TLVs of type (2), length (2, including these 4 bytes).
- * It names the switch and the exact port this capture point is plugged into.
+ *
+ * <p>Cisco devices announce themselves to their directly connected neighbours once a minute, whether or not
+ * anyone asked. For a capture taken on a switch port this is the single most useful frame on the wire: it
+ * names the switch, the exact interface this capture point is plugged into, the hardware model, the IOS
+ * version, the native VLAN and the management addresses. None of it is authenticated, so treat it as the
+ * device's own claim rather than as fact.
+ *
+ * <p><b>On the wire:</b> SNAP with OUI 00:00:0c and protocol id 0x2000, sent to 01:00:0c:cc:cc:cc. The
+ * payload is a version byte, a TTL, a checksum, and then TLVs of type (2 bytes) and length (2 bytes,
+ * counting the four header bytes themselves).
+ *
+ * <p><b>Parsed:</b> the identification and topology TLVs. Device and port id, platform, software version,
+ * VTP domain, native VLAN, duplex, MTU, the capability bitmap and both address lists. Unknown TLVs are
+ * skipped rather than rejected, so a newer device does not break the parse.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
-import java.util.Collections;
-
-import java.util.LinkedHashMap;
-
-import java.util.LinkedHashSet;
-
-import java.util.Map;
-
-import java.util.Set;
-
 public record Cdp(int version, int ttl,
                   String deviceId, String portId, String platform, String softwareVersion,
                   String vtpDomain, Integer nativeVlan, Integer duplex, Integer mtu,

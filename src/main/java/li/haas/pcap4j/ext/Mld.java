@@ -1,29 +1,37 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-
-/**
- * Multicast Listener Discovery (RFC 2710 for version 1, RFC 3810 for version 2),
- * the IPv6 counterpart of IGMP, which pcap4j does not decode.
- * It rides inside ICMPv6: types 130 query, 131 report, 132 done, and 143 for a version 2 report.
- */
-import org.pcap4j.packet.IllegalRawDataException;
-
 import java.util.Collections;
-
 import java.util.LinkedHashMap;
-
 import java.util.LinkedHashSet;
-
+import java.util.List;
 import java.util.Map;
-
 import java.util.Set;
 
+/**
+ * Multicast Listener Discovery (RFC 2710 for version 1, RFC 3810 for version 2), the IPv6 counterpart of
+ * IGMP, which pcap4j does not decode.
+ *
+ * <p>The same job as IGMP and largely the same message shapes, with one practical difference: IPv6 leans on
+ * multicast for neighbour discovery and address configuration, so MLD is busy on links where IGMP would be
+ * silent. Version 2 matches IGMPv3, including source filtering, and a version 2 capable host falls back to
+ * version 1 the moment it hears a version 1 query on the link.
+ *
+ * <p><b>On the wire:</b> inside ICMPv6, not as its own IP protocol. Type 130 is a query, 131 a version 1
+ * report, 132 a done, and 143 a version 2 report. Always hop limit 1 with the router alert hop-by-hop
+ * option, which is why {@link #parseAfterIpv6(int, byte[])} exists: it walks the extension headers for the
+ * caller.
+ *
+ * <p><b>Parsed:</b> all versions into one shape. The type, the maximum response time in milliseconds, the
+ * group, and for a version 2 report every group record with its type and source list. A report's version
+ * follows its ICMPv6 type, while a query's follows its length, since both versions share type 130.
+ */
 public record Mld(int version, int type, int maxResponseMillis,
                   Inet6Address group, List<GroupRecord> records, List<Inet6Address> querySources,
                   Integer robustness, Integer queryInterval) implements Protocol {

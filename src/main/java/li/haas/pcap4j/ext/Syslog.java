@@ -3,9 +3,22 @@ package li.haas.pcap4j.ext;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Syslog (RFC 3164 and 5424), UDP 514, which pcap4j does not decode.
- * Devices log to it in clear text, so a capture shows which hosts log where, what they call
- * themselves, and often the events themselves: link changes, authentication failures, reboots.
+ * Syslog (RFC 3164 for the original format, RFC 5424 for the newer one), UDP 514, which pcap4j does not
+ * decode.
+ *
+ * <p>Where network equipment sends its logs, in clear text, with no authentication of either end. Passively
+ * watching it gives you three things at once: which hosts log and where they log to, which is a map of the
+ * management plane; what those hosts call themselves and which subsystem is speaking; and the events
+ * themselves, since interface state changes, authentication failures, configuration changes and reboots all
+ * go past in readable text.
+ *
+ * <p><b>On the wire:</b> a priority in angle brackets holding facility and severity as one number, then
+ * either a BSD-style timestamp, host and tag, or the RFC 5424 version, structured data and message. Both
+ * are handled; see {@link #structured()} for which form arrived.
+ *
+ * <p><b>Parsed:</b> the facility and severity, the host name, the tag and the message text. See {@link
+ * #facilityName()}, {@link #severityName()} and {@link #isSerious()}. {@link #parse(byte[])} returns null
+ * rather than throwing when the bytes do not start with a priority.
  */
 public record Syslog(int facility, int severity, String hostname, String tag, String message,
                      boolean structured) implements Protocol {

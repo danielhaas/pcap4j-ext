@@ -1,18 +1,28 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.util.Arrays;
 
 /**
- * The Marker protocol (IEEE 802.1AX), the other half of the slow protocol LACP rides on:
- * EtherType 0x8809, subtype 2. pcap4j does not decode it.
- * Before an aggregator moves a conversation from one link of a bundle to another it sends a
- * marker down the old link; once the partner echoes it back, everything in flight has arrived
- * and the move cannot reorder frames. An unanswered marker means the move stalled.
+ * The Marker protocol (IEEE 802.1AX), the other half of the slow protocol that LACP rides on. pcap4j does
+ * not decode it.
+ *
+ * <p>Frames of one conversation must not be reordered, which makes moving a conversation from one link of a
+ * bundle to another awkward: packets already in flight on the old link could arrive after packets sent on
+ * the new one. The marker solves it. Before the move the aggregator sends a marker down the old link; when
+ * the partner echoes it back, everything that was in flight has arrived and the move is safe. So a marker
+ * request without a matching response means a rebalance is stuck, and a partner that never answers markers
+ * has an incomplete LACP implementation.
+ *
+ * <p><b>On the wire:</b> EtherType 0x8809, subtype 2, to 01:80:c2:00:00:02. Sent only when a move is
+ * pending, not periodically.
+ *
+ * <p><b>Parsed:</b> the type, the requester's port and system, and the transaction id. See {@link
+ * #exchangeId()}, which is the system, port and transaction id joined into a key that matches a response to
+ * its request.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Marker(int version, int type, int requesterPort, MacAddress requesterSystem,
                      long transactionId) implements Protocol {
 

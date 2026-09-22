@@ -1,5 +1,6 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.net.Inet4Address;
@@ -7,26 +8,32 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-
-/**
- * DHCPv4 (RFC 2131 and 2132), UDP 67/68, which pcap4j does not decode.
- * The client tells the server its host name and vendor class; the server answers with the
- * address, the subnet mask, the gateway and DNS. The mask is the only place on the wire
- * that states the real prefix length.
- */
-import org.pcap4j.packet.IllegalRawDataException;
-
 import java.util.Collections;
-
 import java.util.LinkedHashMap;
-
 import java.util.LinkedHashSet;
-
+import java.util.List;
 import java.util.Map;
-
 import java.util.Set;
 
+/**
+ * DHCPv4 (RFC 2131 for the protocol, RFC 2132 for the options), UDP 67 and 68, which pcap4j does not
+ * decode.
+ *
+ * <p>The four-message exchange every IPv4 host runs at boot: discover, offer, request, ack. It is worth
+ * parsing for both directions. The client volunteers its host name, its client id and a vendor class
+ * string, and the exact set of options it asks for is stable enough per operating system to fingerprint
+ * with; the server's reply is the only place on the wire that states the real prefix length, along with the
+ * gateway, the DNS servers, the domain and the lease time.
+ *
+ * <p><b>On the wire:</b> a fixed 236-byte BOOTP header, the magic cookie 0x63825363, and then options of
+ * code (1 byte) and length (1 byte). Option 53 carries the message type, which is what makes it DHCP rather
+ * than BOOTP.
+ *
+ * <p><b>Parsed:</b> the header addresses, the client MAC, and the options that identify a host or describe
+ * its configuration, including relay agent circuit and remote id (option 82) when a relay added them. See
+ * {@link #fingerprint()} for the parameter request list rendered as a comparable string, and {@link
+ * #prefixLength()} for the mask as a prefix.
+ */
 public record Dhcp(int messageType, long transactionId, MacAddress clientMac,
                    Inet4Address clientAddress,      // ciaddr, set when renewing
                    Inet4Address assignedAddress,    // yiaddr, what the server hands out

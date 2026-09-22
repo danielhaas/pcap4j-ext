@@ -1,8 +1,8 @@
 package li.haas.pcap4j.ext;
 
 import org.pcap4j.packet.ArpPacket;
-import org.pcap4j.packet.Dot1qVlanTagPacket;
 import org.pcap4j.packet.DnsPacket;
+import org.pcap4j.packet.Dot1qVlanTagPacket;
 import org.pcap4j.packet.EthernetPacket;
 import org.pcap4j.packet.IcmpV6CommonPacket;
 import org.pcap4j.packet.IllegalRawDataException;
@@ -12,8 +12,8 @@ import org.pcap4j.packet.LlcPacket;
 import org.pcap4j.packet.Packet;
 import org.pcap4j.packet.SnapPacket;
 import org.pcap4j.packet.TcpPacket;
-import org.pcap4j.packet.UnknownPacket;
 import org.pcap4j.packet.UdpPacket;
+import org.pcap4j.packet.UnknownPacket;
 import org.pcap4j.packet.namednumber.EtherType;
 import org.pcap4j.util.MacAddress;
 

@@ -3,10 +3,22 @@ package li.haas.pcap4j.ext;
 import java.nio.charset.StandardCharsets;
 
 /**
- * 802.1X port authentication (IEEE 802.1X, EAP per RFC 3748), which pcap4j does not decode.
- * EtherType 0x888e, usually to 01:80:c2:00:00:03. The supplicant's identity travels in clear
- * text in the first EAP response, so a capture shows who authenticates on which port, with what
- * method, and whether it worked.
+ * 802.1X port based authentication (IEEE 802.1X, carrying EAP as defined in RFC 3748), which pcap4j does
+ * not decode.
+ *
+ * <p>802.1X is the lock on the physical port: until the supplicant proves itself to the authenticator, the
+ * switch passes nothing but EAPOL. The exchange is worth capturing because its first steps are in clear
+ * text. The identity response names the user or the machine account, the requested EAP method says how the
+ * credentials will be protected, and the final success or failure frame says whether the port opened. A
+ * network still offering MD5-challenge or LEAP is offering an offline crackable handshake.
+ *
+ * <p><b>On the wire:</b> EtherType 0x888e, usually to the reserved 01:80:c2:00:00:03, which bridges do not
+ * forward. The EAPOL header is a version byte, a packet type, and a two-byte body length; for packet type 0
+ * the body is an EAP packet of code, id, length and type.
+ *
+ * <p><b>Parsed:</b> the EAPOL type, the EAP code, id and method, and the identity string from an identity
+ * response. Key frames (type 3) are recognised but their key material is not decoded. See {@link
+ * #authenticated()}, {@link #rejected()} and {@link #weakMethod()}.
  */
 public record Eapol(int version, int packetType, Integer eapCode, Integer eapId, Integer eapType,
                     String identity) implements Protocol {

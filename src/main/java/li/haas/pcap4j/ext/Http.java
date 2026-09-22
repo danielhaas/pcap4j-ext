@@ -3,9 +3,21 @@ package li.haas.pcap4j.ext;
 import java.nio.charset.StandardCharsets;
 
 /**
- * The first line and a few headers of a plain HTTP request, which pcap4j does not decode.
- * The User-Agent identifies the client and the Host says which site it asked for.
- * Only requests that start at the beginning of a segment are read; this is not a stream reassembler.
+ * The start line and a few headers of plain, unencrypted HTTP, which pcap4j does not decode.
+ *
+ * <p>Almost all browsing has moved to TLS, so what is left on port 80 is mostly the things that never
+ * moved: captive portal probes, firmware and update checks, printers, cameras, embedded management
+ * interfaces and UPnP device descriptions. That makes it valuable for identification rather than for
+ * content. The User-Agent names the client and often its exact OS build, the Host says which site it asked
+ * for, and a response's Server header names the embedded web server, which is usually enough to identify
+ * the device.
+ *
+ * <p><b>Parsed:</b> the request line, or the status line's version for a response, plus Host, User-Agent
+ * and Server. Detection is by the start line, not by port, so HTTP on an unusual port is still found.
+ *
+ * <p>This is not a stream reassembler. Only a request or response that begins at the start of a TCP segment
+ * is read, headers past the first 2 KiB are ignored, and bodies are never touched. {@link #parse(byte[])}
+ * returns null rather than throwing when the bytes are not HTTP.
  */
 public record Http(String method, String target, String version,
                    String host, String userAgent, String server) implements Protocol {

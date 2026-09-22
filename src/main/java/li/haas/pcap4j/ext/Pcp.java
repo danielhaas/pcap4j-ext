@@ -1,17 +1,28 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 
 /**
- * Port Control Protocol version 2 (RFC 6887), the successor of NAT-PMP, which pcap4j does not decode.
- * Same UDP port 5351, told apart from NAT-PMP by the version byte (2 instead of 0).
- * Addresses are always 16 bytes; IPv4 is carried as an IPv4-mapped IPv6 address.
+ * Port Control Protocol version 2 (RFC 6887), the IETF successor to NAT-PMP, which pcap4j does not decode.
+ *
+ * <p>Same purpose as NAT-PMP, asking the gateway for an inbound port mapping, with the corners filled in:
+ * IPv6, protocols other than TCP and UDP, mappings on behalf of a third party, and peer operations for
+ * outbound flows a client wants kept alive. A gateway that reboots and loses its mapping table announces
+ * that fact, and clients renew everything they hold, so the announcement is worth catching.
+ *
+ * <p><b>On the wire:</b> UDP 5351, the same port NAT-PMP uses, told apart by the version byte, 2 rather
+ * than 0. Addresses in the message are always 16 bytes, with IPv4 carried as an IPv4-mapped IPv6 address;
+ * see {@link #isIpv4Client()}.
+ *
+ * <p><b>Parsed:</b> the opcode and direction, the requested or granted lifetime, the client address on a
+ * request, the result code and epoch on a response, and for a map or peer operation the protocol, the
+ * internal and external ports and the external address.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Pcp(int opcode, boolean response, long lifetime,
                   InetAddress clientAddress,          // requests only
                   Integer resultCode, Long epochSeconds,  // responses only

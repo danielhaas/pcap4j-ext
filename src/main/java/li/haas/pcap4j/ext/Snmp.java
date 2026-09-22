@@ -8,10 +8,21 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * SNMP v1 and v2c (RFC 1157, 3416), UDP 161 and 162, which pcap4j does not decode.
- * Only as much BER as the interesting parts need: the version, the community string, which is
- * the password and travels in clear text, the operation, and the variable bindings.
- * Version 3 is recognised but not decoded, since its payload may be encrypted.
+ * SNMP v1 and v2c (RFC 1157 and 3416), UDP 161 for queries and 162 for traps, which pcap4j does not decode.
+ *
+ * <p>The protocol network equipment is managed by, and in its v1 and v2c form the authentication is a
+ * single shared string, the community, sent in clear text in every message. So a capture yields the
+ * community itself, which is usually enough to read, and with a write community to change, the
+ * configuration of the device; which management stations poll which devices; and, from the traps, the
+ * events the devices consider worth reporting. Defaults of "public" and "private" are still common in the
+ * field.
+ *
+ * <p><b>On the wire:</b> BER-encoded ASN.1, a sequence of version, community and the PDU, whose body is the
+ * request id, the error fields and the variable bindings of OID and value.
+ *
+ * <p><b>Parsed:</b> only as much BER as those parts need. The version, the community, the operation, the
+ * request id and the bindings, with values rendered as text. Version 3, which can authenticate and encrypt,
+ * is recognised and reported but not decoded. See {@link #isWrite()} and {@link #usesDefaultCommunity()}.
  */
 public record Snmp(int version, String community, Integer pduType, Long requestId,
                    List<Binding> bindings) implements Protocol {

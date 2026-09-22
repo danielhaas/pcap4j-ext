@@ -12,9 +12,9 @@
     <name>pcap4j-ext</name>
     <description>
         Parsers for link and network layer protocols that pcap4j does not decode:
-        STP, DTP, VTP, CDP, LLDP, PAgP, LACP, UDLD, CGMP, HSRP, VRRP, DHCP, DHCPv6,
-        NetBIOS, mDNS, LLMNR, SSDP, NAT-PMP, PCP, STUN, NTP, IGMP, MLD, TLS SNI,
-        HTTP and QUIC initial packets.
+        STP, DTP, VTP, CDP, LLDP, PAgP, LACP, UDLD, CGMP, 802.1X, HSRP, VRRP, GLBP, OSPF,
+        DHCP, DHCPv6, NetBIOS, mDNS, LLMNR, SSDP, WS-Discovery, NAT-PMP, PCP, STUN, NTP, PTP,
+        SNMP, syslog, TFTP, IGMP, MLD, TLS SNI, HTTP and QUIC initial packets.
     </description>
 
     <licenses>

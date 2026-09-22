@@ -12,9 +12,24 @@ import java.util.List;
 
 /**
  * OSPF (RFC 2328 for version 2, RFC 5340 for version 3), IP protocol 89, which pcap4j does not decode.
- * Only the header and the hello are read: a hello names the router, its area, the designated
- * router and every neighbour it has heard from, which is enough to map the routed topology.
- * The other message types are reported by name and left alone.
+ *
+ * <p>The interior routing protocol most enterprise networks run. Routers on a link discover each other with
+ * hellos, elect a designated router to speak for the segment, and then flood link state advertisements
+ * until everyone holds the same database and can compute its own shortest path tree. The hello is the part
+ * worth parsing: it names the router, the area, the timers, the designated and backup designated routers
+ * and every neighbour the sender has heard from, which is enough to draw the routed topology of the
+ * segment. It is also where a misconfiguration shows, since routers whose area, masks or timers disagree
+ * will never form an adjacency.
+ *
+ * <p><b>On the wire:</b> directly in IP with protocol 89, to 224.0.0.5 for all routers and 224.0.0.6 for
+ * the designated routers, or their ff02::5 and ff02::6 equivalents in version 3. The header is 24 bytes in
+ * version 2, which carries the authentication in it, and 16 in version 3, which has an instance id there
+ * instead; the body for the type follows.
+ *
+ * <p><b>Parsed:</b> the header for every type, and the body for hellos. Database description, link state
+ * request, update and acknowledgement are reported by name and their bodies left alone. See {@link
+ * #authTypeName()}, since OSPF's plain text authentication puts the password in every hello, and {@link
+ * #alone()} for a router that has heard from nobody.
  */
 public record Ospf(int version, int type, Inet4Address routerId, Inet4Address areaId,
                    int authType, String authentication,

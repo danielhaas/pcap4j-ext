@@ -1,5 +1,6 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.nio.charset.StandardCharsets;
@@ -7,11 +8,21 @@ import java.util.Arrays;
 
 /**
  * Cisco Dynamic Trunking Protocol, which pcap4j does not decode.
- * It arrives after SNAP with OUI 00:00:0c and protocol ID 0x2004, sent to 01:00:0c:cc:cc:cc.
- * Payload: version byte, then TLVs of type (2), length (2, includes these 4 bytes), value.
+ *
+ * <p>DTP is how two Cisco switches decide, without being told, whether the link between them should carry
+ * one VLAN or all of them. Each end announces its administrative mode and they negotiate. It matters for
+ * two reasons: it tells you whether a port is a trunk or an access port, and a port left in the default
+ * dynamic-auto or dynamic-desirable mode will form a trunk with anything that asks, which is the classic
+ * VLAN hopping opening.
+ *
+ * <p><b>On the wire:</b> SNAP with OUI 00:00:0c and protocol id 0x2004, sent to 01:00:0c:cc:cc:cc, every 30
+ * seconds. The payload is a version byte, then TLVs of type (2 bytes) and length (2 bytes, counting the
+ * four header bytes).
+ *
+ * <p><b>Parsed:</b> the VTP domain the port belongs to, the status byte and the trunk type byte, and the
+ * neighbour's MAC. See {@link #adminMode()} and {@link #encapsulation()} for the two bytes decoded into
+ * names, and {@link #isTrunk()} for whether the port actually ended up trunking.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Dtp(int version, String domain, int status, int trunkType, MacAddress neighbor) implements Protocol {
 
     /** SNAP protocol id, under OUI 00:00:0c. */

@@ -1,28 +1,33 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Cisco UniDirectional Link Detection, which pcap4j does not decode.
- * SNAP with OUI 00:00:0c and protocol ID 0x0111, sent to 01:00:0c:cc:cc:cc.
- * Each port announces its own device and port id and echoes back the ids it has heard.
- * Seeing your own id in a neighbour's echo is the proof that the link works in both
- * directions; a fibre pair with one broken strand is exactly what this catches.
+ *
+ * <p>A fibre pair with one broken strand is the fault spanning tree handles worst: the link looks up to
+ * both ends, but traffic only flows one way, so a blocked port can unblock and a loop forms. UDLD catches
+ * it. Each port announces its own device and port id and echoes back the ids it has heard; seeing your own
+ * id in a neighbour's echo is proof that the link works in both directions. If the echo never comes back,
+ * the port is shut down in aggressive mode or merely flagged in normal mode.
+ *
+ * <p><b>On the wire:</b> SNAP with OUI 00:00:0c and protocol id 0x0111, to 01:00:0c:cc:cc:cc, every 15
+ * seconds by default. The payload is a version and opcode byte, flags, a checksum, then TLVs of type (2
+ * bytes) and length (2 bytes).
+ *
+ * <p><b>Parsed:</b> the opcode, the device and port id, the device name, the timers, the sequence number
+ * and the echo list. See {@link #nothingHeard()} for a probe with an empty echo, which is what a one-way
+ * link looks like from the far end.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
-import java.util.Collections;
-
-import java.util.LinkedHashMap;
-
-import java.util.LinkedHashSet;
-
-import java.util.Map;
-
-import java.util.Set;
-
 public record Udld(int version, int opcode, int flags,
                    String deviceId, String portId, String deviceName,
                    Integer messageInterval, Integer timeoutInterval, Long sequence,

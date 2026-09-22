@@ -1,28 +1,37 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * IGMP (RFC 2236 for version 2, RFC 3376 for version 3), IP protocol 2, which pcap4j does not decode.
- * Hosts announce which multicast groups they want; the elected querier on the segment asks
- * periodically who is still listening. Version 3 reports also name the sources a host will accept.
+ *
+ * <p>How an IPv4 host tells the network it wants a multicast group. Hosts send a report when they join and,
+ * in version 2 and later, a leave when they are done; the elected querier on the segment asks periodically
+ * who is still listening, and a group with no answer is pruned. Version 3 adds source filtering, so a
+ * report also names the sources a host will or will not accept. Because switches snoop these messages to
+ * build their multicast forwarding tables, a capture tells you both who wants what and how the switch will
+ * behave.
+ *
+ * <p><b>On the wire:</b> directly in IP with protocol 2 and TTL 1, with the router alert option. A general
+ * query goes to 224.0.0.1, a version 3 report to 224.0.0.22, and a group specific message to the group
+ * itself.
+ *
+ * <p><b>Parsed:</b> all three versions into one shape. The type, the maximum response time, the group, and,
+ * for a version 3 report, every group record with its type and source list. A version 3 query's source
+ * list, robustness and query interval are read as well. A report's version follows its type, while a
+ * query's follows its length, since all three versions share type 0x11.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
-import java.util.Collections;
-
-import java.util.LinkedHashMap;
-
-import java.util.LinkedHashSet;
-
-import java.util.Map;
-
-import java.util.Set;
-
 public record Igmp(int version, int type, int maxResponseSeconds,
                    Inet4Address group, List<GroupRecord> records, List<Inet4Address> querySources,
                    Integer robustness, Integer queryInterval) implements Protocol {

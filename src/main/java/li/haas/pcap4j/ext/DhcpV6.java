@@ -1,5 +1,6 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.net.Inet6Address;
@@ -8,26 +9,30 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-
-/**
- * DHCPv6 (RFC 8415), UDP 546 (client) and 547 (server), which pcap4j does not decode.
- * Nothing like DHCPv4 on the wire: a one-byte message type, a three-byte transaction id,
- * then options of code (2) and length (2). Clients and servers identify themselves by DUID
- * rather than by MAC, though most DUIDs contain a MAC.
- */
-import org.pcap4j.packet.IllegalRawDataException;
-
 import java.util.Collections;
-
 import java.util.LinkedHashMap;
-
 import java.util.LinkedHashSet;
-
+import java.util.List;
 import java.util.Map;
-
 import java.util.Set;
 
+/**
+ * DHCPv6 (RFC 8415), UDP 546 on the client and 547 on the server, which pcap4j does not decode.
+ *
+ * <p>The same job as DHCPv4 and almost nothing in common with it on the wire. Addresses are handed out
+ * inside nested identity association options rather than in a header field, and a host that only needs DNS
+ * servers may use the stateless exchange and never take an address at all. Clients and servers identify
+ * themselves by DUID, a stable opaque id, rather than by MAC; most DUID forms embed a MAC, which this
+ * parser pulls out when it can, but a DUID-UUID does not.
+ *
+ * <p><b>On the wire:</b> one message type byte, a three-byte transaction id, and then options of code (2
+ * bytes) and length (2 bytes). Client messages go to ff02::1:2. A relayed message (types 12 and 13) wraps
+ * the original and is not unwrapped here.
+ *
+ * <p><b>Parsed:</b> the DUIDs, the MAC inside the client DUID when the form allows it, the addresses from
+ * IA_NA and IA_TA, delegated prefixes from IA_PD, the DNS servers, the client FQDN, the vendor class,
+ * elapsed time, status code and the option request list.
+ */
 public record DhcpV6(int messageType, int transactionId,
                     String clientDuid, MacAddress clientMac,   // MAC out of the DUID, when it has one
                     String serverDuid,

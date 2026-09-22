@@ -1,5 +1,7 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
@@ -7,11 +9,22 @@ import java.util.Arrays;
 
 /**
  * NTP (RFC 5905), UDP 123, which pcap4j does not decode.
- * A reply says how far the server is from a reference clock (the stratum) and, for a
- * secondary server, which upstream it follows, so a capture reveals the time hierarchy.
+ *
+ * <p>Time synchronisation, and incidentally a map of the network's timing hierarchy. Every server states
+ * its stratum, its distance in hops from a real reference clock, and a secondary server's reference id
+ * names the upstream it follows, so a handful of replies is enough to reconstruct who synchronises from
+ * whom and where the chain leaves the network. The mode field also separates the ordinary client-server
+ * traffic from the control and private modes, which are the ones used for querying and reconfiguring a
+ * server remotely and are worth noticing on their own.
+ *
+ * <p><b>On the wire:</b> UDP 123 symmetrically, so both ends usually use the source port 123 as well. The
+ * first 48 bytes are a fixed header; anything after them is an optional extension or MAC and is not read
+ * here.
+ *
+ * <p><b>Parsed:</b> the leap indicator, version, mode, stratum, poll interval and precision, and the
+ * reference id rendered the way the stratum demands, as a four-character source name for stratum 0 and 1
+ * and as an IPv4 address above that. See {@link #isControlOrPrivate()} and {@link #pollSeconds()}.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Ntp(int leapIndicator, int version, int mode, int stratum,
                   int pollInterval, int precision, String referenceId) implements Protocol {
 

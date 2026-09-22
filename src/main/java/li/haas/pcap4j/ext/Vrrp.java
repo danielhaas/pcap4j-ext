@@ -1,30 +1,39 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * VRRP (RFC 3768 for version 2, RFC 5798 for version 3), which pcap4j does not decode.
- * It runs directly on IP protocol 112, to 224.0.0.18 or ff02::12, not over UDP.
- * Only the master advertises, so a second router advertising the same VRID means the
- * group has split. The virtual MAC is 00:00:5e:00:01:{vrid} for IPv4.
+ *
+ * <p>The standard first hop redundancy protocol, and what non-Cisco equipment runs in place of HSRP.
+ * Routers in a group share a virtual address and a virtual MAC; the one with the highest priority becomes
+ * master and is the only one that advertises. That last point is what makes a capture useful: two routers
+ * advertising the same VRID at the same time means the group has split, usually because the advertisements
+ * are not reaching one of them, and both are now answering for the same address.
+ *
+ * <p><b>On the wire:</b> directly in IP with protocol 112, not over UDP, to 224.0.0.18 or ff02::12, with
+ * TTL 255. The virtual MAC is 00:00:5e:00:01:{vrid} for IPv4 and 00:00:5e:00:02:{vrid} for IPv6. Version 3
+ * drops authentication entirely and states the advertisement interval in centiseconds, which allows
+ * sub-second failover.
+ *
+ * <p><b>Parsed:</b> the version and type, the VRID and priority, the advertisement interval, every virtual
+ * address, and for version 2 the authentication type and string. The interval component keeps the units its
+ * version uses, seconds for version 2 and centiseconds for version 3; {@link #advertIntervalSeconds()}
+ * normalises it. Priority 255 means the router owns the address outright and 0 means it is resigning; see
+ * {@link #isOwner()} and {@link #isResigning()}.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
-import java.util.Collections;
-
-import java.util.LinkedHashMap;
-
-import java.util.LinkedHashSet;
-
-import java.util.Map;
-
-import java.util.Set;
-
 public record Vrrp(int version, int type, int virtualRouterId, int priority,
                    int advertIntervalCentiseconds, List<InetAddress> virtualAddresses,
                    int authType, String authentication) implements Protocol {

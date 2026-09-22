@@ -1,10 +1,16 @@
 package li.haas.pcap4j.ext;
 
 /**
- * Shared NetBIOS bits (RFC 1001/1002), which pcap4j does not decode.
- * A NetBIOS name is 15 characters plus a one-byte suffix that says what the name is for.
- * On the wire it is "first level encoded": every byte becomes two characters, each holding
- * one nibble added to 'A', so 16 bytes become 32 characters.
+ * Shared NetBIOS pieces (RFC 1001 and 1002) used by both {@link Nbns} and {@link Nbds}. pcap4j decodes
+ * neither.
+ *
+ * <p>A NetBIOS name is 15 characters padded with spaces plus a one-byte suffix that says what the name is
+ * for: 00 is a workstation, 20 a file server, 1b a domain master browser, 1c a domain controller group. The
+ * suffix is what distinguishes a host's several names from each other, so it carries most of the meaning.
+ *
+ * <p>On the wire the name is first-level encoded: each byte is split into two nibbles and each nibble is
+ * added to the character 'A', so 16 bytes become 32 characters, wrapped in a length byte and a terminator.
+ * That is why NetBIOS names appear in a hex dump as runs of capital letters.
  */
 public final class Netbios {
 

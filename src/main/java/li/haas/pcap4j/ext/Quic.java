@@ -1,31 +1,40 @@
 package li.haas.pcap4j.ext;
 
-import javax.crypto.Cipher;
-import javax.crypto.Mac;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.crypto.Cipher;
+import javax.crypto.Mac;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
- * QUIC Initial packets (RFC 9000 and 9001), which pcap4j does not decode.
- * The payload is encrypted, but an Initial packet's keys are derived from its destination
- * connection id with a salt published in the RFC, so anyone can decrypt it. That is how the
- * client hello, and with it the server name, can still be read off the wire.
+ * QUIC Initial packets (RFC 9000 for the transport, RFC 9001 for its use of TLS), which pcap4j does not
+ * decode.
+ *
+ * <p>QUIC moved HTTP onto UDP and encrypted almost all of the transport along with it, which removes most
+ * of what a passive observer used to read from a TCP handshake. The Initial packet is the exception. Its
+ * keys are derived from the destination connection id with a salt published in the RFC, so anyone who can
+ * see the packet can decrypt it. Inside is the TLS client hello, and with it the server name, which is the
+ * one piece of plaintext identity left in an HTTPS connection over QUIC.
+ *
+ * <p><b>On the wire:</b> UDP, conventionally to port 443, long header form, with the version and both
+ * connection ids in clear text. Header protection is removed first, then AEAD decryption, then the CRYPTO
+ * frames are collected.
+ *
+ * <p><b>Parsed:</b> the version and both connection ids, and the CRYPTO fragments with their offsets. A
+ * modern client hello is two to three kilobytes, mostly post-quantum key shares, so it will not fit in one
+ * packet; hand the results to {@link QuicAssembler} to reassemble it into a {@link Tls}. {@link
+ * #parse(byte[])} returns null rather than throwing when the bytes are not a QUIC Initial, since nothing
+ * identifies them beforehand.
  */
-import java.util.Collections;
-
-import java.util.LinkedHashMap;
-
-import java.util.LinkedHashSet;
-
-import java.util.Map;
-
-import java.util.Set;
-
 public record Quic(long version, String destinationConnectionId, String sourceConnectionId,
                    List<Fragment> fragments) implements Protocol {
 

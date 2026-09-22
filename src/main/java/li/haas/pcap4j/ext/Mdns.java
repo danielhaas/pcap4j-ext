@@ -11,6 +11,7 @@ import org.pcap4j.packet.DnsResourceRecord;
 import org.pcap4j.packet.IllegalRawDataException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -18,12 +19,22 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Multicast DNS / DNS-SD (RFC 6762, 6763): DNS messages on UDP 5353 to 224.0.0.251 or ff02::fb.
- * pcap4j only decodes port 53, so the payload has to be handed to DnsPacket.newPacket separately.
- * What a device publishes here is self-reported, but it is the best passive source of host names.
+ * Multicast DNS and DNS-SD (RFC 6762 and 6763): DNS messages on UDP 5353 to 224.0.0.251 or ff02::fb. pcap4j
+ * decodes DNS only on port 53.
+ *
+ * <p>Zero configuration name resolution and service discovery, and in practice the richest passive source
+ * of host identity on a modern network. Apple and Android devices, printers, TVs, speakers and anything
+ * with Bonjour or Avahi announce their .local name, the services they offer, the ports those services
+ * listen on and a TXT record that frequently states the exact hardware model and OS version. Nobody has to
+ * ask; the announcements are unsolicited and repeated.
+ *
+ * <p><b>Parsed:</b> the host name, the A and AAAA addresses it announces, the service types and instances
+ * it offers, the SRV port per instance, the TXT pairs, and the service types it is browsing for. See {@link
+ * #deviceId()} and {@link #model()} for the identification pulled out of the TXT records.
+ *
+ * <p>All of it is self-reported and trivially spoofed. Takes a {@link org.pcap4j.packet.DnsPacket} the
+ * caller builds, so a pcap4j packet factory must be on the classpath for the record data to be decoded.
  */
-import java.util.Collections;
-
 public record Mdns(String hostname,              // e.g. "gamora.local"
                    Set<String> addresses,        // A and AAAA records it announces
                    Set<String> services,         // service types it offers, e.g. "_smb._tcp.local"

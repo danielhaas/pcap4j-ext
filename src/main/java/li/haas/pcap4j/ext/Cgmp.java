@@ -1,29 +1,33 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Cisco Group Management Protocol, which pcap4j does not decode.
- * SNAP with OUI 00:00:0c and protocol ID 0x2001, sent to 01:00:0c:dd:dd:dd.
- * The router tells the switch which host joined or left which multicast group, so the switch
- * can forward that group to one port instead of flooding it. Superseded by IGMP snooping.
+ *
+ * <p>A switch floods multicast to every port unless something tells it better. CGMP is the pre-standard way
+ * Cisco solved that: the router, which sees the IGMP joins and leaves, tells the switch which host MAC
+ * joined or left which group MAC, and the switch programs its forwarding table accordingly. IGMP snooping
+ * does the same job by watching IGMP directly and has replaced CGMP almost everywhere, so seeing it at all
+ * dates the equipment.
+ *
+ * <p><b>On the wire:</b> SNAP with OUI 00:00:0c and protocol id 0x2001, sent to 01:00:0c:dd:dd:dd. The
+ * payload is the version and the type, join or leave, in the two nibbles of the first byte, two reserved
+ * bytes, a count, and then that many pairs of group MAC and host MAC.
+ *
+ * <p><b>Parsed:</b> the type and every group/host pair. The special all-zero group MAC, which means "leave
+ * all", is returned as it appears rather than being expanded.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
-import java.util.Collections;
-
-import java.util.LinkedHashMap;
-
-import java.util.LinkedHashSet;
-
-import java.util.Map;
-
-import java.util.Set;
-
 public record Cgmp(int version, int type, List<Entry> entries) implements Protocol {
     public Cgmp {
         entries = copy(entries);

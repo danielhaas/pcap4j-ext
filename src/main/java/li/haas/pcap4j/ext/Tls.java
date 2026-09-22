@@ -2,23 +2,32 @@ package li.haas.pcap4j.ext;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.List;
-
-/**
- * Just enough TLS to read the server name out of a ClientHello, which pcap4j does not decode.
- * Everything after the handshake is encrypted, but the SNI extension travels in clear text,
- * so a capture shows which host each client is reaching for.
- */
 import java.util.Collections;
-
 import java.util.LinkedHashMap;
-
 import java.util.LinkedHashSet;
-
+import java.util.List;
 import java.util.Map;
-
 import java.util.Set;
 
+/**
+ * Just enough TLS to read the client hello, which pcap4j does not decode.
+ *
+ * <p>Everything after the handshake is encrypted, but the hello that opens it is not, and it has to name
+ * the host the client is reaching for so that a server with many certificates knows which one to present.
+ * That SNI extension is the last piece of plaintext identity in an HTTPS connection, and the ALPN extension
+ * next to it says which protocol was proposed, HTTP/1.1, h2 or h3. For a passive inventory this is what
+ * maps a host to the services it talks to.
+ *
+ * <p><b>On the wire:</b> a TLS record of type 22 (handshake) containing a client hello. Detection is by the
+ * record and handshake structure, not by port, so TLS on a port other than 443 is still found. TLS 1.3
+ * keeps the legacy version field at 1.2 and negotiates the real version in an extension, so the version
+ * fields here describe the record, not the session.
+ *
+ * <p><b>Parsed:</b> the record and handshake versions, the server name and the ALPN list. {@link
+ * #parse(byte[])} returns null rather than throwing when the bytes are not a client hello; {@link
+ * #parseHandshake(byte[])} takes handshake bytes that have already been stripped of their record layer,
+ * which is how a hello reassembled from QUIC arrives.
+ */
 public record Tls(int recordVersion, int handshakeVersion, String serverName, List<String> alpn) implements Protocol {
 
     /** The usual port. Detection is by the record and handshake structure, not by port. */

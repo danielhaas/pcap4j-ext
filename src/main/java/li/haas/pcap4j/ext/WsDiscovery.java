@@ -8,9 +8,23 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * WS-Discovery (OASIS ws-dd), UDP 3702 to 239.255.255.250 or ff02::c, which pcap4j does not decode.
- * SOAP over UDP, and the discovery protocol Windows and most network printers use alongside SSDP
- * and mDNS. A Hello or ProbeMatch names the device, its stable UUID and the addresses it serves on.
+ * WS-Discovery (the OASIS ws-dd standard), UDP 3702 to 239.255.255.250 or ff02::c, which pcap4j does not
+ * decode.
+ *
+ * <p>The third discovery protocol on a typical network, alongside SSDP and mDNS, and the one Windows and
+ * most network printers use. A device sends a Hello when it joins and a Bye when it leaves, and answers a
+ * Probe for a device type it matches with a ProbeMatch. Windows uses it for its network map and for WSD
+ * printing and scanning, so on a network with printers it is where the printers announce themselves.
+ *
+ * <p><b>On the wire:</b> SOAP envelopes in XML over UDP, which makes the messages large and verbose
+ * compared to the other two. The action URI at the end of the WS-Addressing Action element says which of
+ * the five message types it is.
+ *
+ * <p><b>Parsed:</b> the action, the sender's endpoint address, which is a stable UUID that survives address
+ * changes, the device types and scopes, and the transport addresses the device serves on. Read by pulling
+ * the elements out of the XML rather than by parsing the SOAP properly, which is enough for discovery
+ * traffic. See {@link #uuid()} and {@link #isLeaving()}. {@link #parse(byte[])} returns null rather than
+ * throwing when the bytes are not a WS-Discovery message.
  */
 public record WsDiscovery(String action, String address, List<String> types,
                           List<String> scopes, List<String> transportAddresses) implements Protocol {

@@ -1,5 +1,6 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.util.MacAddress;
 
 import java.net.InetAddress;
@@ -8,13 +9,24 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
- * Cisco Hot Standby Router Protocol, which pcap4j does not decode.
- * Version 1 is a fixed 20-byte message on UDP 1985 to 224.0.0.2; version 2 is a TLV format
- * on UDP 1985 (IPv4, to 224.0.0.102) or UDP 2029 (IPv6). The routers in a group share a
- * virtual address, and the one with the highest priority answers for it.
+ * Cisco Hot Standby Router Protocol (RFC 2281 describes version 1), which pcap4j does not decode.
+ *
+ * <p>The oldest of the first hop redundancy protocols, and still the most common one inside Cisco networks.
+ * Two or more routers share one virtual IP and one virtual MAC; the highest priority router in the group
+ * becomes active and answers for the address, the next in line becomes standby and takes over if the hellos
+ * stop. Hosts point their default gateway at the virtual address and never notice the handover. A capture
+ * shows which routers are in which group, which one is currently active, and how long a failover will take.
+ *
+ * <p><b>On the wire:</b> version 1 is a fixed 20-byte message on UDP 1985 to 224.0.0.2. Version 2 is a TLV
+ * format on UDP 1985 for IPv4, to 224.0.0.102, or UDP 2029 for IPv6, and carries a six-byte identifier plus
+ * a 32-bit group number. Hellos are every three seconds by default. The virtual MAC is
+ * 00:00:0c:07:ac:{group} for version 1.
+ *
+ * <p><b>Parsed:</b> both versions into one shape. The opcode and state, the group, the priority, the hello
+ * and hold timers, the virtual address, the authentication string and, for version 2, the sender's
+ * identifier. See {@link #usesDefaultPassword()}: HSRP's plain text authentication defaults to the string
+ * "cisco" and is sent in every hello.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
 public record Hsrp(int version, int opcode, int state, int group, long priority,
                    int helloSeconds, int holdSeconds, InetAddress virtualAddress,
                    String authentication, MacAddress identifier) implements Protocol {

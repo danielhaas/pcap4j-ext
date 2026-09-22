@@ -3,24 +3,32 @@ package li.haas.pcap4j.ext;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-/**
- * SSDP, the discovery part of UPnP, which pcap4j does not decode.
- * HTTP-like text over UDP 1900, multicast to 239.255.255.250; responses are unicast to the searching host.
- * Everything here is self-reported by the device and trivially spoofed.
- */
 import java.util.ArrayList;
-
 import java.util.Collections;
-
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-
 import java.util.List;
-
+import java.util.Map;
 import java.util.Set;
 
+/**
+ * SSDP, the discovery half of UPnP, which pcap4j does not decode.
+ *
+ * <p>How consumer devices find each other: a device announces itself when it joins with a NOTIFY, repeats
+ * it periodically, sends a byebye when it leaves, and a client looking for something sends an M-SEARCH that
+ * matching devices answer directly. The announcement points at a description URL, which is where the model,
+ * manufacturer and serial number live. Two things make it worth capturing beyond inventory: an Internet
+ * Gateway Device advertisement means something on the network will open ports on the perimeter on request,
+ * and SSDP is a favourite reflection amplifier, so unexpected M-SEARCH traffic is a signal in itself.
+ *
+ * <p><b>On the wire:</b> HTTP-shaped text over UDP 1900, multicast to 239.255.255.250 or ff02::c, with
+ * responses unicast back to the searcher. Not real HTTP, despite the look of it.
+ *
+ * <p><b>Parsed:</b> the message type and every header, with accessors for the ones that matter: {@link
+ * #serviceType()}, {@link #uuid()}, {@link #server()}, {@link #location()}, {@link
+ * #isInternetGatewayDevice()} and {@link #maxAge()}. Everything in it is self-reported and trivially
+ * spoofed. {@link #parse(byte[])} returns null rather than throwing when the bytes are not SSDP.
+ */
 public record Ssdp(Type type, Map<String, String> headers) implements Protocol {
 
     /** Multicast port; a unicast reply can come from any port, so this is a hint, not a key. */

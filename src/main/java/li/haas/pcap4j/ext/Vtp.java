@@ -1,31 +1,36 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Cisco VLAN Trunking Protocol, which pcap4j does not decode.
- * SNAP with OUI 00:00:0c and protocol ID 0x2003, sent to 01:00:0c:cc:cc:cc.
- * A summary advertisement names the domain and its configuration revision; a subset
- * advertisement carries the VLAN database itself. The highest revision in a domain wins,
- * which is why a switch joining with a higher revision can overwrite everyone's VLANs.
+ *
+ * <p>VTP keeps the VLAN database identical across a domain by having switches flood changes to each other.
+ * Every database carries a revision number, and the highest revision in the domain wins, unconditionally.
+ * That is the whole protocol and also its notorious failure: a switch put back on the network with an old
+ * database but a higher revision number will overwrite the VLANs of every switch in the domain, which takes
+ * the network down. So the domain name and the revision number are worth watching, as is the password,
+ * since a domain without one accepts updates from anything that plugs in.
+ *
+ * <p><b>On the wire:</b> SNAP with OUI 00:00:0c and protocol id 0x2003, to 01:00:0c:cc:cc:cc. A summary
+ * advertisement announces the domain and its revision every five minutes; a subset advertisement follows a
+ * change and carries the VLAN database itself; a request asks for one.
+ *
+ * <p><b>Parsed:</b> the message code and domain, the revision, the updater and timestamp, the MD5 digest of
+ * the password, and from a subset advertisement every VLAN with its id, name, MTU, status and type.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
-import java.util.Collections;
-
-import java.util.LinkedHashMap;
-
-import java.util.LinkedHashSet;
-
-import java.util.Map;
-
-import java.util.Set;
-
 public record Vtp(int version, int code, String domain, Long revision,
                   Inet4Address updater, String updateTimestamp, String md5,
                   Integer followers, List<Vlan> vlans, Integer startValue) implements Protocol {

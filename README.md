@@ -15,13 +15,17 @@ It is a companion, not a fork: add it next to pcap4j and hand it the raw payload
 | Cisco layer 2 | CDP, DTP, VTP, PAgP (info and flush), UDLD, CGMP |
 | Link aggregation | LACP, the Marker protocol |
 | Neighbour discovery | LLDP, including 802.1, 802.3 and LLDP-MED inventory TLVs |
-| Gateway redundancy | HSRP v1 and v2, VRRP v2 and v3 |
+| Gateway redundancy | HSRP v1 and v2, VRRP v2 and v3, GLBP |
+| Routing | OSPF v2 and v3, header and hello |
 | Address configuration | DHCP, DHCPv6 |
 | Name resolution | mDNS/DNS-SD, LLMNR, NetBIOS name service and datagram service with Windows Browser |
-| Discovery | SSDP/UPnP |
+| Discovery | SSDP/UPnP, WS-Discovery |
 | NAT traversal | NAT-PMP, PCP, STUN |
 | Multicast | IGMP v1/v2/v3, MLD v1/v2 |
-| Other | NTP, TLS client hello (SNI and ALPN), HTTP request and response headers, QUIC initial packets |
+| Access control | 802.1X/EAPOL, with the EAP identity and method |
+| Management | SNMP v1 and v2c, syslog, TFTP |
+| Time | NTP, PTP (IEEE 1588) |
+| Other | TLS client hello (SNI and ALPN), HTTP request and response headers, QUIC initial packets |
 
 ## Usage
 
@@ -114,10 +118,13 @@ caller can identify the protocol before parsing:
 - **Strict**: the caller dispatched by EtherType, SNAP protocol id, IP protocol number or port, so
   bytes that do not fit are a malformed frame. `parse` throws `IllegalRawDataException` naming the
   protocol and the first bytes. This covers STP, CDP, DTP, VTP, PAgP, UDLD, CGMP, LLDP, LACP, the
-  marker protocol, HSRP, VRRP, DHCP, DHCPv6, NBNS, NBDS, NTP, IGMP, MLD, NAT-PMP and PCP.
-- **Sniffing**: nothing identifies the protocol beforehand, so the parser has to recognise itself and
-  returns `null` when the bytes are not its own. This covers SSDP, STUN, TLS, HTTP and QUIC, plus the
-  locators `Mld.parseAfterIpv6` and `Netbios.parseName`.
+  marker protocol, 802.1X, HSRP, VRRP, GLBP, OSPF, DHCP, DHCPv6, NBNS, NBDS, NTP, SNMP, IGMP, MLD,
+  NAT-PMP and PCP. Where a caller would rather probe than dispatch, 802.1X, GLBP, OSPF and SNMP also
+  expose the underlying `parseOrNull`.
+- **Sniffing**: nothing identifies the protocol beforehand, or the port that carries it is not proof
+  enough, so the parser has to recognise itself and returns `null` when the bytes are not its own.
+  This covers SSDP, STUN, TLS, HTTP, QUIC, syslog, TFTP, PTP and WS-Discovery, plus the locators
+  `Mld.parseAfterIpv6` and `Netbios.parseName`.
 
 The split is not cosmetic. While it was being introduced, the permissive contract had already let two
 bugs through: `Bpdu.parse` accepted a tunneled frame's payload as a BPDU with a 0.058 second max age,
@@ -131,7 +138,8 @@ same as "not this protocol".
   dissectors. Treat the decoded values as informative, not authoritative.
 - **No stream reassembly.** TLS and HTTP are read from a single segment. A client hello split across
   TCP segments is missed. QUIC is the exception, because its fragments carry offsets.
-- **Sniffing parsers are best effort.** SSDP, STUN, TLS, HTTP and QUIC have to recognise themselves,
+- **Sniffing parsers are best effort.** SSDP, STUN, TLS, HTTP, QUIC, syslog, TFTP, PTP and
+  WS-Discovery have to recognise themselves,
   so they check that the structure is plausible and nothing more. Dispatch on a port or EtherType
   where you can, and prefer the strict parsers, which say why they rejected something.
 - **Nothing here validates checksums.**

@@ -8,24 +8,28 @@ import org.pcap4j.packet.DnsRDataAaaa;
 import org.pcap4j.packet.DnsResourceRecord;
 import org.pcap4j.packet.IllegalRawDataException;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
- * Link-Local Multicast Name Resolution (RFC 4795), UDP 5355 to 224.0.0.252 or ff02::1:3.
- * DNS shaped, like mDNS, but for plain single-label host names rather than service discovery,
- * and Windows falls back to it when DNS has no answer. pcap4j only decodes port 53.
+ * Link-Local Multicast Name Resolution (RFC 4795), UDP 5355 to 224.0.0.252 or ff02::1:3. pcap4j decodes DNS
+ * only on port 53.
+ *
+ * <p>Windows's fallback when DNS has no answer: the host shouts the single-label name on the local link and
+ * whoever owns it replies. Same wire format as DNS and the same idea as mDNS, but for plain host names
+ * rather than service discovery. It is worth capturing for two reasons. It names hosts that no DNS server
+ * knows about, and because any machine may answer, it is one of the standard credential relay openings, so
+ * a responder on the segment shows up here as a host answering names that are not its own.
+ *
+ * <p><b>Parsed:</b> which names were asked for and, in a response, which names the host claims with which
+ * addresses. Takes a {@link org.pcap4j.packet.DnsPacket} the caller builds, so a pcap4j packet factory must
+ * be on the classpath for the record data to be decoded.
  */
-import java.util.ArrayList;
-
-import java.util.Collections;
-
-import java.util.LinkedHashMap;
-
-import java.util.List;
-
-import java.util.Map;
-
 public record Llmnr(boolean response, Set<String> queried, Set<String> claimed, Set<String> addresses) implements Protocol {
     public Llmnr {
         queried = copy(queried);

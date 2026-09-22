@@ -1,29 +1,38 @@
 package li.haas.pcap4j.ext;
 
+import org.pcap4j.packet.IllegalRawDataException;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * LLDP (IEEE 802.1AB), the vendor-neutral neighbour discovery, which pcap4j does not decode.
- * EtherType 0x88cc, usually to 01:80:c2:00:00:0e.
- * TLVs are type (7 bits) and length (9 bits) packed into two bytes, then the value.
- * The organisation-specific TLVs add VLAN data (802.1), link settings (802.3)
- * and, from LLDP-MED, real asset data such as model and serial number.
+ *
+ * <p>The standard answer to CDP, and the one non-Cisco equipment speaks. Every device advertises its
+ * chassis and port identity to its immediate neighbours every 30 seconds, and the organisation-specific
+ * extensions carry a good deal more: VLAN assignment from the 802.1 set, speed and duplex from the 802.3
+ * set, and from LLDP-MED the voice VLAN a phone should use plus real inventory data, model, serial number,
+ * firmware revision and manufacturer. For anything with a phone or a printer on it, LLDP-MED is the best
+ * passive asset inventory available.
+ *
+ * <p><b>On the wire:</b> EtherType 0x88cc, usually to 01:80:c2:00:00:0e. TLVs pack a 7-bit type and a 9-bit
+ * length into two bytes, then the value; the message ends at a type 0 TLV.
+ *
+ * <p><b>Parsed:</b> chassis and port id, TTL, port description, system name and description, both
+ * capability bitmaps, the management addresses, and from the organisation-specific TLVs the port VLAN, the
+ * VLAN names, the maximum frame size, the LLDP-MED voice VLAN and the LLDP-MED inventory as a map. A
+ * chassis or port id is rendered by its subtype, so a MAC comes back as a MAC and an interface name as
+ * text.
  */
-import org.pcap4j.packet.IllegalRawDataException;
-
-import java.util.Collections;
-
-import java.util.LinkedHashSet;
-
-import java.util.Set;
-
 public record Lldp(String chassisId, String portId, Integer ttl,
                    String portDescription, String systemName, String systemDescription,
                    Integer capabilities, Integer enabledCapabilities,
