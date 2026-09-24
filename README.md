@@ -169,11 +169,11 @@ JitPack builds the library straight from GitHub:
 <dependency>
     <groupId>com.github.danielhaas</groupId>
     <artifactId>pcap4j-ext</artifactId>
-    <version>main-SNAPSHOT</version>
+    <version>v0.1.0</version>
 </dependency>
 ```
 
-Use a git tag such as `v0.1.0` as the version for a fixed build.
+The version is a git tag of this repository.
 
 ## Building
 
