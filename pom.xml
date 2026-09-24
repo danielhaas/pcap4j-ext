@@ -6,7 +6,7 @@
 
     <groupId>li.haas</groupId>
     <artifactId>pcap4j-ext</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <name>pcap4j-ext</name>
