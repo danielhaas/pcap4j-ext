@@ -154,6 +154,27 @@ Two defects in pcap4j 1.8.2 affect this ground, and the library works around bot
 - **EtherType 0x88a8** (802.1ad) is not decoded, so a QinQ frame stops at the outer tag. A caller can
   re-parse the payload as a `Dot1qVlanTagPacket`.
 
+## Using it from Maven
+
+JitPack builds the library straight from GitHub:
+
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>com.github.danielhaas</groupId>
+    <artifactId>pcap4j-ext</artifactId>
+    <version>main-SNAPSHOT</version>
+</dependency>
+```
+
+Use a git tag such as `v0.1.0` as the version for a fixed build.
+
 ## Building
 
 ```
