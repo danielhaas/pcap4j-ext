@@ -1,6 +1,10 @@
-# JitPack's default JDK is older than the Java 25 this library targets
+# JitPack's default JDK is older than the Java 25 this library targets, and its Maven 3.6.1
+# is older than the compiler plugin allows
 before_install:
   - sdk install java 25.0.4-tem
   - sdk use java 25.0.4-tem
+  - sdk install maven 3.9.16
+  - sdk use maven 3.9.16
 install:
+  - mvn -v
   - mvn -B install -DskipTests
